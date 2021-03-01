@@ -1,0 +1,14 @@
+torchvision
+scipy==1.1.0
+argparse
+tensorboardX
+blessings
+progressbar2
+path.py
+matplotlib
+opencv-python
+scikit-image
+pypng
+tqdm
+spatial-correlation-sampler==0.2.1
+pillow==6.1
