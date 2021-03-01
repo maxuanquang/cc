@@ -175,16 +175,23 @@ def main():
 
         if args.output_dir is not None:
             tgt_img_viz = tensor2array(tgt_img[0].cpu())
-            depth_viz = tensor2array(disp.data[0].cpu(), max_value=None, colormap='hot')
+            depth_viz = tensor2array(disp.data[0].cpu(), max_value=None, colormap='magma')
             mask_viz = tensor2array(rigidity_mask_census_soft.data[0].cpu(), max_value=1, colormap='bone')
             row2_viz = flow_to_image(np.hstack((tensor2array(flow_cam.data[0].cpu()),
                                     tensor2array(flow_fwd_non_rigid.data[0].cpu()),
                                     tensor2array(total_flow.data[0].cpu()) )) )
 
             row1_viz = np.hstack((tgt_img_viz, depth_viz, mask_viz))
-            viz3 = np.vstack((255*tgt_img_viz, 255*depth_viz, 255*mask_viz,
-                        flow_to_image(np.vstack((tensor2array(flow_fwd_non_rigid.data[0].cpu()),
+            ####### sửa 2 cái vstack thành hstack ###############
+            viz3 = np.hstack((255*tgt_img_viz, 255*depth_viz, 255*mask_viz,
+                        flow_to_image(np.hstack((tensor2array(flow_fwd_non_rigid.data[0].cpu()),
                                     tensor2array(total_flow.data[0].cpu()))))))
+            ########################################################
+            ######## code tự thêm ####################
+            row1_viz = np.transpose(row1_viz, (1,2,0))
+            row2_viz = np.transpose(row2_viz, (1,2,0))
+            viz3 = np.transpose(viz3, (1,2,0))
+            ##########################################
 
             row1_viz_im = Image.fromarray((255*row1_viz).astype('uint8'))
             row2_viz_im = Image.fromarray((row2_viz).astype('uint8'))

@@ -111,8 +111,15 @@ def main():
             gt_viz = (1/gt_viz).clamp(0,10)
 
             tgt_img_viz = tensor2array(tgt_img[0].cpu())
-            depth_viz = tensor2array(torch.FloatTensor(pred_disp), max_value=None, colormap='hot')
-            gt_viz = tensor2array(gt_viz, max_value=None, colormap='hot')
+            depth_viz = tensor2array(torch.FloatTensor(pred_disp), max_value=None, colormap='magma')
+            gt_viz = tensor2array(gt_viz, max_value=None, colormap='magma')
+
+            ############## code này tự thêm ##################################
+            tgt_img_viz = np.transpose(tgt_img_viz, (1,2,0))
+            depth_viz = np.transpose(depth_viz, (1,2,0))
+            gt_viz = np.transpose(gt_viz, (1,2,0))
+            ##################################################################
+            
             tgt_img_viz_im = Image.fromarray((255*tgt_img_viz).astype('uint8'))
             tgt_img_viz_im.save(viz_dir/str(j).zfill(4)+'img.png')
             depth_viz_im = Image.fromarray((255*depth_viz).astype('uint8'))

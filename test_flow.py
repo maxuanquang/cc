@@ -177,6 +177,12 @@ def main():
             row1_viz = np.hstack((tgt_img_viz, depth_viz, mask_viz))
             row2_viz = np.hstack((rigid_flow_viz, non_rigid_flow_viz, total_flow_viz))
 
+            ######## code tu them ####################
+            row1_viz = np.transpose(row1_viz, (1,2,0))
+            row2_viz = np.transpose(row2_viz, (1,2,0))
+            # viz3 = np.transpose(viz3, (1,2,0))
+            #############################################
+
             row1_viz_im = Image.fromarray((255*row1_viz).astype('uint8'))
             row2_viz_im = Image.fromarray((row2_viz).astype('uint8'))
 
