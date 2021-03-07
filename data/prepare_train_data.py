@@ -85,8 +85,8 @@ def main():
                 else:
                     tf.write('{}\n'.format(s.name))
                     # remove useless groundtruth data for training comment if you don't want to erase it
-                    for gt_file in s.files('*.npy'):
-                        gt_file.remove_p()
+#                     for gt_file in s.files('*.npy'):
+#                         gt_file.remove_p()
 
 
 if __name__ == '__main__':
