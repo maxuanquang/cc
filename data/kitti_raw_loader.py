@@ -27,7 +27,7 @@ class KittiRawLoader(object):
         self.img_height = img_height
         self.img_width = img_width
         self.cam_ids = ['02', '03']
-        self.date_list = ['2011_09_29']
+        self.date_list = ['2011_09_26']
         self.min_speed = min_speed
         self.get_gt = get_gt
         self.collect_train_folders()
