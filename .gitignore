@@ -20,3 +20,4 @@ datasets/mnist/
 datasets/svhn/
 results/*
 pretrained/*
+KITTI_data*
