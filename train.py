@@ -146,7 +146,7 @@ def main():
     elif args.dataset_format == 'sequential':
         from datasets.sequence_folders import SequenceFolder
     save_path = Path(args.name)
-    args.save_path = 'checkpoints'/save_path #/timestamp
+    args.save_path = '/content/drive/MyDrive/VinAI/Motion segmentation/checkpoints'/save_path #/timestamp
     print('=> will save everything to {}'.format(args.save_path))
     args.save_path.makedirs_p()
     torch.manual_seed(args.seed)
