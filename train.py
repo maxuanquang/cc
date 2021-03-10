@@ -424,7 +424,10 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter(precision=4)
-    w1, w2, w3, w4 = args.cam_photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight, args.flow_photo_loss_weight
+    w1 = args.cam_photo_loss_weight
+    w2 = args.mask_loss_weight
+    w3 = args.smooth_loss_weight
+    w4 = args.flow_photo_loss_weight
     w5 = args.consensus_loss_weight
 
     if args.robust:
@@ -653,13 +656,14 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
     poses = np.zeros(((len(val_loader)-1) * 1 * (args.sequence_length-1),6))
 
     for i, (tgt_img, ref_imgs, intrinsics, intrinsics_inv, flow_gt, obj_map_gt) in enumerate(val_loader):
-        tgt_img_var = Variable(tgt_img.cuda(), volatile=True)
-        ref_imgs_var = [Variable(img.cuda(), volatile=True) for img in ref_imgs]
-        intrinsics_var = Variable(intrinsics.cuda(), volatile=True)
-        intrinsics_inv_var = Variable(intrinsics_inv.cuda(), volatile=True)
+        with torch.no_grad():
+            tgt_img_var = Variable(tgt_img.cuda())
+            ref_imgs_var = [Variable(img.cuda()) for img in ref_imgs]
+            intrinsics_var = Variable(intrinsics.cuda())
+            intrinsics_inv_var = Variable(intrinsics_inv.cuda())
 
-        flow_gt_var = Variable(flow_gt.cuda(), volatile=True)
-        obj_map_gt_var = Variable(obj_map_gt.cuda(), volatile=True)
+            flow_gt_var = Variable(flow_gt.cuda())
+            obj_map_gt_var = Variable(obj_map_gt.cuda())
 
         # compute output
         disp = disp_net(tgt_img_var)
