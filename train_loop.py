@@ -330,9 +330,12 @@ def main():
     else:
         logger=None
 
-    index_R = range(0,args.epochs,3) # an index to specify which epochs train R
-    index_F = range(1,args.epochs,3)
-    index_M = range(2,args.epochs,3)
+    # index_R = range(0,args.epochs,3) # an index to specify which epochs train R
+    # index_F = range(1,args.epochs,3)
+    # index_M = range(2,args.epochs,3)
+
+    index_R = range(0,args.epochs,2) # an index to specify which epochs train R
+    index_F = range(1,args.epochs,2)
     for epoch in range(args.epochs):
         # train R, F, M iteratively while keeping other networks fix
         if epoch in index_R:
@@ -355,16 +358,16 @@ def main():
             args.smooth_loss_weight = 0.005
             args.flow_photo_loss_weight = 1.0
             args.consensus_loss_weight = 0.0
-        if epoch in index_M:
-            args.fix_dispnet = True 
-            args.fix_posenet = True
-            args.fix_flownet = True
-            args.fix_masknet = False
-            args.cam_photo_loss_weight = 1.0
-            args.mask_loss_weight = 0.005
-            args.smooth_loss_weight = 0.005
-            args.flow_photo_loss_weight = 0.5
-            args.consensus_loss_weight = 0.3
+        # if epoch in index_M:
+        #     args.fix_dispnet = True 
+        #     args.fix_posenet = True
+        #     args.fix_flownet = True
+        #     args.fix_masknet = False
+        #     args.cam_photo_loss_weight = 1.0
+        #     args.mask_loss_weight = 0.005
+        #     args.smooth_loss_weight = 0.005
+        #     args.flow_photo_loss_weight = 0.5
+        #     args.consensus_loss_weight = 0.3
 
         if args.fix_flownet:
             for fparams in flow_net.parameters():
