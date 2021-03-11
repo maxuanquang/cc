@@ -413,6 +413,8 @@ def main():
                 'state_dict': optimizer.state_dict()
             },
             is_best)
+        with open(os.path.join(args.save_path,'n_iter.txt'),'w') as f:
+            f.write(str(n_iter))
 
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
@@ -521,8 +523,6 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
             train_writer.add_scalar('flow_photometric_error', loss_4.item(), n_iter)
             train_writer.add_scalar('consensus_error', loss_5.item(), n_iter)
             train_writer.add_scalar('total_loss', loss.item(), n_iter)
-            with open(os.path.join(args.save_path,'n_iter.txt'),'w') as f:
-                f.write(str(n_iter))
 
 
         if args.training_output_freq > 0 and n_iter % args.training_output_freq == 0:
