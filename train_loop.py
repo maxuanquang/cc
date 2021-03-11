@@ -369,21 +369,34 @@ def main():
         #     args.flow_photo_loss_weight = 0.5
         #     args.consensus_loss_weight = 0.3
 
+        # frezze models' parameters
         if args.fix_flownet:
             for fparams in flow_net.parameters():
                 fparams.requires_grad = False
+        else:
+            for fparams in flow_net.parameters():
+                fparams.requires_grad = True
 
         if args.fix_masknet:
             for fparams in mask_net.parameters():
                 fparams.requires_grad = False
+        else:
+            for fparams in mask_net.parameters():
+                fparams.requires_grad = True
 
         if args.fix_posenet:
             for fparams in pose_net.parameters():
                 fparams.requires_grad = False
+        else:
+            for fparams in pose_net.parameters():
+                fparams.requires_grad = True
 
         if args.fix_dispnet:
             for fparams in disp_net.parameters():
                 fparams.requires_grad = False
+        else:
+            for fparams in disp_net.parameters():
+                fparams.requires_grad = True
 
         if args.log_terminal:
             logger.epoch_bar.update(epoch)
