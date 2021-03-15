@@ -323,7 +323,7 @@ def main():
             logger.reset_train_bar()
 
         # train for one epoch
-        train_loss = train(train_loader, disp_net, pose_net, mask_net=None, flow_net=None, optimizer, args.epoch_size, logger, training_writer)
+        train_loss = train(train_loader, disp_net, pose_net, mask_net=None, flow_net=None, optimizer=optimizer, epoch_size=args.epoch_size, logger=logger, train_writer=training_writer)
 
         if args.log_terminal:
             logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
