@@ -247,6 +247,7 @@ def main():
     if not output_exp:
         print("=> no mask loss, PoseExpnet will only output pose")
     pose_net = getattr(models, args.posenet)(nb_ref_imgs=args.sequence_length - 1).cuda()
+    mask_net = getattr(models, args.masknet)(nb_ref_imgs=args.sequence_length - 1, output_exp=True).cuda()
 
     if args.pretrained_pose:
         print("=> using pre-trained weights for explainabilty and pose net")
@@ -263,17 +264,30 @@ def main():
     else:
         disp_net.init_weights()
 
+    if args.pretrained_mask:
+        print("=> using pre-trained weights for explainabilty and pose net")
+        weights = torch.load(args.pretrained_mask)
+        mask_net.load_state_dict(weights['state_dict'])
+    else:
+        mask_net.init_weights()
+
     if args.resume:
         print("=> resuming from checkpoint")
         dispnet_weights = torch.load(args.save_path/'dispnet_checkpoint.pth.tar')
         posenet_weights = torch.load(args.save_path/'posenet_checkpoint.pth.tar')
+        masknet_weights = torch.load(args.save_path/'masknet_checkpoint.pth.tar')
+        # flownet_weights = torch.load(args.save_path/'flownet_checkpoint.pth.tar')
         disp_net.load_state_dict(dispnet_weights['state_dict'])
         pose_net.load_state_dict(posenet_weights['state_dict'])
+        # flow_net.load_state_dict(flownet_weights['state_dict'])
+        mask_net.load_state_dict(masknet_weights['state_dict'])
 
     # import ipdb; ipdb.set_trace()
     cudnn.benchmark = True
     disp_net = torch.nn.DataParallel(disp_net)
     pose_net = torch.nn.DataParallel(pose_net)
+    mask_net = torch.nn.DataParallel(mask_net)
+    # flow_net = torch.nn.DataParallel(flow_net)
 
     print('=> setting adam solver')
 
@@ -306,9 +320,9 @@ def main():
         #     for fparams in flow_net.parameters():
         #         fparams.requires_grad = False
 
-        # if args.fix_masknet:
-        #     for fparams in mask_net.parameters():
-        #         fparams.requires_grad = False
+        if args.fix_masknet:
+            for fparams in mask_net.parameters():
+                fparams.requires_grad = False
 
         # if args.fix_posenet:
         #     for fparams in pose_net.parameters():
@@ -323,7 +337,7 @@ def main():
             logger.reset_train_bar()
 
         # train for one epoch
-        train_loss = train(train_loader, disp_net, pose_net, mask_net=None, flow_net=None, optimizer=optimizer, epoch_size=args.epoch_size, logger=logger, train_writer=training_writer)
+        train_loss = train(train_loader, disp_net, pose_net, mask_net, flow_net=None, optimizer=optimizer, epoch_size=args.epoch_size, logger=logger, train_writer=training_writer)
 
         if args.log_terminal:
             logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
@@ -417,7 +431,7 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
     # switch to train mode
     disp_net.train()
     pose_net.train()
-    # mask_net.train()
+    mask_net.train()
     # flow_net.train()
 
     end = time.time()
@@ -437,7 +451,7 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
 
         depth = [1/disp for disp in disparities]
         pose = pose_net(tgt_img_var, ref_imgs_var)
-        # explainability_mask = mask_net(tgt_img_var, ref_imgs_var)
+        explainability_mask = mask_net(tgt_img_var, ref_imgs_var)
 
         # if args.flownet == 'Back2Future':
         #     flow_fwd, flow_bwd, _ = flow_net(tgt_img_var, ref_imgs_var[1:3])
@@ -458,7 +472,7 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
         # if args.joint_mask_for_depth:
         #     explainability_mask_for_depth = compute_joint_mask_for_depth(explainability_mask, rigidity_mask_bwd, rigidity_mask_fwd)
         # else:
-        #     explainability_mask_for_depth = explainability_mask
+        explainability_mask_for_depth = explainability_mask
 
         # if args.no_non_rigid_mask:
         #     flow_exp_mask = [None for exp_mask in explainability_mask]
