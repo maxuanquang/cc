@@ -421,7 +421,7 @@ def main():
             f.write(str(n_iter))
 
         with open(os.path.join(args.save_path,'start_epoch.txt'),'w') as f:
-            f.write(str(epoch))
+            f.write(str(epoch+1))
 
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
