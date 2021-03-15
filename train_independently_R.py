@@ -169,12 +169,12 @@ def main():
         normalize = custom_transforms.NormalizeLocally()
 
     # if args.fix_flownet:
-    #     train_transform = custom_transforms.Compose([
-    #         custom_transforms.RandomHorizontalFlip(),
-    #         custom_transforms.RandomScaleCrop(),
-    #         custom_transforms.ArrayToTensor(),
-    #         normalize
-    #     ])
+    train_transform = custom_transforms.Compose([
+        custom_transforms.RandomHorizontalFlip(),
+        custom_transforms.RandomScaleCrop(),
+        custom_transforms.ArrayToTensor(),
+        normalize
+    ])
     # else:
     #     train_transform = custom_transforms.Compose([
     #         custom_transforms.RandomRotate(),
