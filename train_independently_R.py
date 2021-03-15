@@ -184,10 +184,10 @@ def main():
     #         normalize
     #     ])
 
-    # valid_transform = custom_transforms.Compose([custom_transforms.ArrayToTensor(), normalize])
+    valid_transform = custom_transforms.Compose([custom_transforms.ArrayToTensor(), normalize])
 
-    # valid_flow_transform = custom_transforms.Compose([custom_transforms.Scale(h=flow_loader_h, w=flow_loader_w),
-    #                         custom_transforms.ArrayToTensor(), normalize])
+    valid_flow_transform = custom_transforms.Compose([custom_transforms.Scale(h=flow_loader_h, w=flow_loader_w),
+                            custom_transforms.ArrayToTensor(), normalize])
 
     print("=> fetching scenes in '{}'".format(args.data))
     train_set = SequenceFolder(
