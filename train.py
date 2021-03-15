@@ -136,10 +136,11 @@ parser.add_argument('-f', '--training-output-freq', type=int, help='frequence fo
 
 best_error = -1
 n_iter = 0
+start_epoch = 0
 
 
 def main():
-    global args, best_error, n_iter
+    global args, best_error, n_iter, start_epoch
     args = parser.parse_args()
     if args.dataset_format == 'stacked':
         from datasets.stacked_sequence_folders import SequenceFolder
@@ -295,6 +296,8 @@ def main():
         mask_net.load_state_dict(masknet_weights['state_dict'])
         with open(os.path.join(args.save_path,'n_iter.txt'),'r') as f:
             n_iter = int(f.readline())
+        with open(os.path.join(args.save_path,'start_epoch.txt'),'r') as f:
+            start_epoch = int(f.readline())
 
 
     # import ipdb; ipdb.set_trace()
@@ -330,7 +333,7 @@ def main():
     else:
         logger=None
 
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch,start_epoch+args.epochs):
         if args.fix_flownet:
             for fparams in flow_net.parameters():
                 fparams.requires_grad = False
@@ -361,6 +364,9 @@ def main():
         # evaluate on validation set
         if args.with_flow_gt:
             flow_errors, flow_error_names = validate_flow_with_gt(val_flow_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers)
+            
+            for error, name in zip(flow_errors, flow_error_names):
+                training_writer.add_scalar(name, error, epoch)
 
         if args.with_depth_gt:
             errors, error_names = validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers)
@@ -375,9 +381,6 @@ def main():
             for error, name in zip(errors, error_names):
                 training_writer.add_scalar(name, error, epoch)
 
-        if args.with_flow_gt:
-            for error, name in zip(flow_errors, flow_error_names):
-                training_writer.add_scalar(name, error, epoch)
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
 
@@ -416,6 +419,9 @@ def main():
 
         with open(os.path.join(args.save_path,'n_iter.txt'),'w') as f:
             f.write(str(n_iter))
+
+        with open(os.path.join(args.save_path,'start_epoch.txt'),'w') as f:
+            f.write(str(epoch))
 
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
