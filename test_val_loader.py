@@ -626,7 +626,7 @@ def validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers=[
 
         if log_outputs and i % 100 == 0 and i/100 < len(output_writers):
             index = int(i//100)
-            if epoch == 0:
+            if epoch == start_epoch:
                 output_writers[index].add_image('val Input', tensor2array(tgt_img[0]), 0)
                 depth_to_show = depth[0].cpu()
                 output_writers[index].add_image('val target Depth', tensor2array(depth_to_show, max_value=10), epoch)
