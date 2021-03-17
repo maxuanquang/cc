@@ -136,10 +136,11 @@ parser.add_argument('-f', '--training-output-freq', type=int, help='frequence fo
 
 best_error = -1
 n_iter = 0
+start_epoch = 0
 
 
 def main():
-    global args, best_error, n_iter
+    global args, best_error, n_iter, start_epoch
     args = parser.parse_args()
     if args.dataset_format == 'stacked':
         from datasets.stacked_sequence_folders import SequenceFolder
@@ -295,6 +296,8 @@ def main():
         mask_net.load_state_dict(masknet_weights['state_dict'])
         with open(os.path.join(args.save_path,'n_iter.txt'),'r') as f:
             n_iter = int(f.readline())
+        with open(os.path.join(args.save_path,'start_epoch.txt'),'r') as f:
+            start_epoch = int(f.readline())
 
 
     # import ipdb; ipdb.set_trace()
@@ -325,78 +328,27 @@ def main():
         writer.writerow(['train_loss', 'photo_cam_loss', 'photo_flow_loss', 'explainability_loss', 'smooth_loss'])
 
     if args.log_terminal:
-        logger = TermLogger(n_epochs=args.epochs, train_size=min(len(train_loader), args.epoch_size), valid_size=len(val_loader))
+        logger = TermLogger(n_epochs=start_epoch+args.epochs, train_size=min(len(train_loader), args.epoch_size), valid_size=len(val_loader))
         logger.epoch_bar.start()
     else:
         logger=None
 
-    # index_R = range(0,args.epochs,3) # an index to specify which epochs train R
-    # index_F = range(1,args.epochs,3)
-    # index_M = range(2,args.epochs,3)
-
-    index_R = range(0,args.epochs,2) # an index to specify which epochs train R
-    index_F = range(1,args.epochs,2)
-    for epoch in range(args.epochs):
-        # train R, F, M iteratively while keeping other networks fix
-        if epoch in index_R:
-            args.fix_dispnet = False 
-            args.fix_posenet = False
-            args.fix_flownet = True
-            args.fix_masknet = True
-            args.cam_photo_loss_weight = 1.0
-            args.mask_loss_weight = 0.05
-            args.smooth_loss_weight = 0.005
-            args.flow_photo_loss_weight = 0.5
-            args.consensus_loss_weight = 0.0
-        if epoch in index_F:
-            args.fix_dispnet = True 
-            args.fix_posenet = True
-            args.fix_flownet = False
-            args.fix_masknet = True
-            args.cam_photo_loss_weight = 0.0
-            args.mask_loss_weight = 0.005
-            args.smooth_loss_weight = 0.005
-            args.flow_photo_loss_weight = 1.0
-            args.consensus_loss_weight = 0.0
-        # if epoch in index_M:
-        #     args.fix_dispnet = True 
-        #     args.fix_posenet = True
-        #     args.fix_flownet = True
-        #     args.fix_masknet = False
-        #     args.cam_photo_loss_weight = 1.0
-        #     args.mask_loss_weight = 0.005
-        #     args.smooth_loss_weight = 0.005
-        #     args.flow_photo_loss_weight = 0.5
-        #     args.consensus_loss_weight = 0.3
-
-        # frezze models' parameters
+    for epoch in range(start_epoch,start_epoch+args.epochs):
         if args.fix_flownet:
             for fparams in flow_net.parameters():
                 fparams.requires_grad = False
-        else:
-            for fparams in flow_net.parameters():
-                fparams.requires_grad = True
 
         if args.fix_masknet:
             for fparams in mask_net.parameters():
                 fparams.requires_grad = False
-        else:
-            for fparams in mask_net.parameters():
-                fparams.requires_grad = True
 
         if args.fix_posenet:
             for fparams in pose_net.parameters():
                 fparams.requires_grad = False
-        else:
-            for fparams in pose_net.parameters():
-                fparams.requires_grad = True
 
         if args.fix_dispnet:
             for fparams in disp_net.parameters():
                 fparams.requires_grad = False
-        else:
-            for fparams in disp_net.parameters():
-                fparams.requires_grad = True
 
         if args.log_terminal:
             logger.epoch_bar.update(epoch)
@@ -412,6 +364,9 @@ def main():
         # evaluate on validation set
         if args.with_flow_gt:
             flow_errors, flow_error_names = validate_flow_with_gt(val_flow_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers)
+            
+            for error, name in zip(flow_errors, flow_error_names):
+                training_writer.add_scalar(name, error, epoch)
 
         if args.with_depth_gt:
             errors, error_names = validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers)
@@ -426,9 +381,6 @@ def main():
             for error, name in zip(errors, error_names):
                 training_writer.add_scalar(name, error, epoch)
 
-        if args.with_flow_gt:
-            for error, name in zip(flow_errors, flow_error_names):
-                training_writer.add_scalar(name, error, epoch)
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
 
@@ -464,12 +416,26 @@ def main():
                 'state_dict': optimizer.state_dict()
             },
             is_best)
+
         with open(os.path.join(args.save_path,'n_iter.txt'),'w') as f:
             f.write(str(n_iter))
+
+        with open(os.path.join(args.save_path,'start_epoch.txt'),'w') as f:
+            f.write(str(epoch+1))
 
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
             writer.writerow([train_loss, decisive_error])
+
+    # create a stop_training.txt file to notify the script to stop training
+    with open(args.save_path/args.log_summary, 'r') as csvfile:
+        content = csvfile.readlines()
+    epoch_valid_loss = np.array([item.split('\t')[-1].split('\n')[0] for item in content[1:]]).astype(np.float)
+    change_percent = abs((epoch_valid_loss[-1]-epoch_valid_loss[0])/epoch_valid_loss[-1])
+    if change_percent < 0.05:
+        with open('stop_training.txt','w') as f:
+            f.write(' ')
+
     if args.log_terminal:
         logger.epoch_bar.finish()
 
@@ -564,6 +530,7 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
         loss_5 = consensus_depth_flow_mask(explainability_mask, rigidity_mask_bwd, rigidity_mask_fwd,
                                         exp_masks_target, exp_masks_target, THRESH=args.THRESH, wbce=args.wbce)
 
+        
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3 + w4*loss_4 + w5*loss_5
 
         if i > 0 and n_iter % args.print_freq == 0:
@@ -574,6 +541,7 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
             train_writer.add_scalar('flow_photometric_error', loss_4.item(), n_iter)
             train_writer.add_scalar('consensus_error', loss_5.item(), n_iter)
             train_writer.add_scalar('total_loss', loss.item(), n_iter)
+
 
         if args.training_output_freq > 0 and n_iter % args.training_output_freq == 0:
 
@@ -668,7 +636,7 @@ def validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers=[
 
         if log_outputs and i % 100 == 0 and i/100 < len(output_writers):
             index = int(i//100)
-            if epoch == 0:
+            if epoch == start_epoch:
                 output_writers[index].add_image('val Input', tensor2array(tgt_img[0]), 0)
                 depth_to_show = depth[0].cpu()
                 output_writers[index].add_image('val target Depth', tensor2array(depth_to_show, max_value=10), epoch)
