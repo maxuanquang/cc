@@ -328,7 +328,7 @@ def main():
         writer.writerow(['train_loss', 'photo_cam_loss', 'photo_flow_loss', 'explainability_loss', 'smooth_loss'])
 
     if args.log_terminal:
-        logger = TermLogger(n_epochs=start_epoch+args.epochs, train_size=min(len(train_loader), args.epoch_size), valid_size=len(val_loader))
+        logger = TermLogger(n_epochs=args.epochs, train_size=min(len(train_loader), args.epoch_size), valid_size=len(val_loader))
         logger.epoch_bar.start()
     else:
         logger=None
@@ -355,11 +355,11 @@ def main():
             logger.reset_train_bar()
 
         # train for one epoch
-        train_loss = train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, args.epoch_size, logger, training_writer)
+        # train_loss = train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, args.epoch_size, logger, training_writer)
 
-        if args.log_terminal:
-            logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
-            logger.reset_valid_bar()
+        # if args.log_terminal:
+        #     logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
+        #     logger.reset_valid_bar()
 
         # evaluate on validation set
         if args.with_flow_gt:
@@ -384,48 +384,48 @@ def main():
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
 
-        if not args.fix_posenet:
-            decisive_error = flow_errors[-2]    # epe_rigid_with_gt_mask
-        elif not args.fix_dispnet:
-            decisive_error = errors[0]      #depth abs_diff
-        elif not args.fix_flownet:
-            decisive_error = flow_errors[-1]    #epe_non_rigid_with_gt_mask
-        elif not args.fix_masknet:
-            decisive_error = flow_errors[3]     # percent outliers
-        if best_error < 0:
-            best_error = decisive_error
+        # if not args.fix_posenet:
+        #     decisive_error = flow_errors[-2]    # epe_rigid_with_gt_mask
+        # elif not args.fix_dispnet:
+        #     decisive_error = errors[0]      #depth abs_diff
+        # elif not args.fix_flownet:
+        #     decisive_error = flow_errors[-1]    #epe_non_rigid_with_gt_mask
+        # elif not args.fix_masknet:
+        #     decisive_error = flow_errors[3]     # percent outliers
+        # if best_error < 0:
+        #     best_error = decisive_error
 
-        # remember lowest error and save checkpoint
-        is_best = decisive_error <= best_error
-        best_error = min(best_error, decisive_error)
-        save_checkpoint(
-            args.save_path, {
-                'epoch': epoch + 1,
-                'state_dict': disp_net.module.state_dict()
-            }, {
-                'epoch': epoch + 1,
-                'state_dict': pose_net.module.state_dict()
-            }, {
-                'epoch': epoch + 1,
-                'state_dict': mask_net.module.state_dict()
-            }, {
-                'epoch': epoch + 1,
-                'state_dict': flow_net.module.state_dict()
-            }, {
-                'epoch': epoch + 1,
-                'state_dict': optimizer.state_dict()
-            },
-            is_best)
+        # # remember lowest error and save checkpoint
+        # is_best = decisive_error <= best_error
+        # best_error = min(best_error, decisive_error)
+        # save_checkpoint(
+        #     args.save_path, {
+        #         'epoch': epoch + 1,
+        #         'state_dict': disp_net.module.state_dict()
+        #     }, {
+        #         'epoch': epoch + 1,
+        #         'state_dict': pose_net.module.state_dict()
+        #     }, {
+        #         'epoch': epoch + 1,
+        #         'state_dict': mask_net.module.state_dict()
+        #     }, {
+        #         'epoch': epoch + 1,
+        #         'state_dict': flow_net.module.state_dict()
+        #     }, {
+        #         'epoch': epoch + 1,
+        #         'state_dict': optimizer.state_dict()
+        #     },
+        #     is_best)
 
-        with open(os.path.join(args.save_path,'n_iter.txt'),'w') as f:
-            f.write(str(n_iter))
+        # with open(os.path.join(args.save_path,'n_iter.txt'),'w') as f:
+        #     f.write(str(n_iter))
 
-        with open(os.path.join(args.save_path,'start_epoch.txt'),'w') as f:
-            f.write(str(epoch+1))
+        # with open(os.path.join(args.save_path,'start_epoch.txt'),'w') as f:
+        #     f.write(str(epoch+1))
 
-        with open(args.save_path/args.log_summary, 'a') as csvfile:
-            writer = csv.writer(csvfile, delimiter='\t')
-            writer.writerow([train_loss, decisive_error])
+        # with open(args.save_path/args.log_summary, 'a') as csvfile:
+        #     writer = csv.writer(csvfile, delimiter='\t')
+        #     writer.writerow([train_loss, decisive_error])
     if args.log_terminal:
         logger.epoch_bar.finish()
 

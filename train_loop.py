@@ -426,6 +426,16 @@ def main():
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
             writer.writerow([train_loss, decisive_error])
+
+    # create a stop_training.txt file to notify the script to stop training
+    with open(args.save_path/args.log_summary, 'r') as csvfile:
+        content = csvfile.readlines()
+    epoch_valid_loss = np.array([item.split('\t')[-1].split('\n')[0] for item in content[1:]]).astype(np.float)
+    change_percent = abs((epoch_valid_loss[-1]-epoch_valid_loss[0])/epoch_valid_loss[-1])
+    if change_percent < 0.05:
+        with open('stop_training.txt','w') as f:
+            f.write(' ')
+
     if args.log_terminal:
         logger.epoch_bar.finish()
 
