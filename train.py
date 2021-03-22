@@ -29,6 +29,9 @@ from path import Path
 from itertools import chain
 from tensorboardX import SummaryWriter
 from flowutils.flowlib import flow_to_image
+from inverse_warp import pose_vec2mat
+from tqdm import tqdm
+
 epsilon = 1e-8
 
 parser = argparse.ArgumentParser(description='Competitive Collaboration training on KITTI and CityScapes Dataset',
@@ -37,6 +40,8 @@ parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('--kitti-dir', dest='kitti_dir', type=str, default='kitti/kitti2015',
                     help='Path to kitti2015 scene flow dataset for optical flow validation')
+parser.add_argument('--kitti-odometry-dir', dest='kitti_odometry_dir', type=str, default='/content/drive/MyDrive/Dự án/KITTI Dataset/Odometry/dataset',
+                    help='Path to kitti odometry dataset for pose validation')
 parser.add_argument('--DEBUG', action='store_true', help='DEBUG Mode')
 parser.add_argument('--name', dest='name', type=str, default='demo', required=True,
                     help='name of the experiment, checpoints are stored in checpoints/name')
@@ -50,10 +55,16 @@ parser.add_argument('--padding-mode', type=str, choices=['zeros', 'border'], def
                     help='padding mode for image warping : this is important for photometric differenciation when going outside target image.'
                          ' zeros will null gradients outside target image.'
                          ' border will only null gradients of the coordinate outside (x or y)')
+
 parser.add_argument('--with-depth-gt', action='store_true', help='use ground truth for depth validation. \
                     You need to store it in npy 2D arrays see data/kitti_raw_loader.py for an example')
 parser.add_argument('--with-flow-gt', action='store_true', help='use ground truth for flow validation. \
                     see data/validation_flow for an example')
+parser.add_argument('--with-pose-gt', action='store_true', help='use ground truth for depth validation. \
+                    You need to store it in npy 2D arrays see data/kitti_raw_loader.py for an example')
+parser.add_argument('--with-mask-gt', action='store_true', help='use ground truth for flow validation. \
+                    see data/validation_flow for an example')
+
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
@@ -220,6 +231,13 @@ def main():
         val_flow_set = ValidationFlow(root=args.kitti_dir,
                                         sequence_length=args.sequence_length, transform=valid_flow_transform)
 
+    if args.with_mask_gt:
+        pass
+
+    if args.with_pose_gt:
+        from kitti_eval.pose_evaluation_utils import test_framework_KITTI as test_framework
+        framework = test_framework(Path(args.kitti_odometry_dir), ['09'], args.sequence_length)
+
     if args.DEBUG:
         train_set.__len__ = 32
         train_set.samples = train_set.samples[:32]
@@ -377,6 +395,19 @@ def main():
                 logger.valid_writer.write(' * Avg {}'.format(error_string))
             else:
                 print('Epoch {} completed'.format(epoch))
+
+            for error, name in zip(errors, error_names):
+                training_writer.add_scalar(name, error, epoch)
+
+        if args.with_pose_gt:
+            pose_errors, pose_error_names = validate_pose_with_gt(pose_net, framework)
+            
+            for error, name in zip(pose_errors, pose_error_names):
+                training_writer.add_scalar(name, error, epoch)
+
+        if args.with_mask_gt:
+            pass
+            errors, error_names = validate_mask_with_gt(val_mask_loader, disp_net, epoch, logger, output_writers)
 
             for error, name in zip(errors, error_names):
                 training_writer.add_scalar(name, error, epoch)
@@ -792,7 +823,76 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
 
     return errors.avg, error_names
 
+def validate_pose_with_gt(pose_net, framework):
+    def compute_pose_error(gt, pred):
+        RE = 0
+        snippet_length = gt.shape[0]
+        scale_factor = np.sum(gt[:,:,-1] * pred[:,:,-1])/np.sum(pred[:,:,-1] ** 2)
+        ATE = np.linalg.norm((gt[:,:,-1] - scale_factor * pred[:,:,-1]).reshape(-1))
+        for gt_pose, pred_pose in zip(gt, pred):
+            # Residual matrix to which we compute angle's sin and cos
+            R = gt_pose[:,:3] @ np.linalg.inv(pred_pose[:,:3])
+            s = np.linalg.norm([R[0,1]-R[1,0],
+                                R[1,2]-R[2,1],
+                                R[0,2]-R[2,0]])
+            c = np.trace(R) - 1
+            # Note: we actually compute double of cos and sin, but arctan2 is invariant to scale
+            RE += np.arctan2(s,c)
 
+        return ATE/snippet_length, RE/snippet_length
+
+    errors = np.zeros((len(framework), 2), np.float32)
+
+    for j, sample in enumerate(tqdm(framework)):
+        imgs = sample['imgs']
+
+        h,w,_ = imgs[0].shape
+        if (not args.no_resize) and (h != args.img_height or w != args.img_width):
+            imgs = [imresize(img, (args.img_height, args.img_width)).astype(np.float32) for img in imgs]
+
+        imgs = [np.transpose(img, (2,0,1)) for img in imgs]
+
+        ref_imgs_var = []
+        for i, img in enumerate(imgs):
+            img = torch.from_numpy(img).unsqueeze(0)
+            img = ((img/255 - 0.5)/0.5).cuda()
+            img_var = Variable(img, volatile=True)
+            if i == len(imgs)//2:
+                tgt_img_var = img_var
+            else:
+                ref_imgs_var.append(Variable(img, volatile=True))
+
+        if args.posenet in ["PoseNet6", "PoseNetB6"]:
+            poses = pose_net(tgt_img_var, ref_imgs_var)
+        else:
+            _, poses = pose_net(tgt_img_var, ref_imgs_var)
+
+        poses = poses.cpu().data[0]
+        poses = torch.cat([poses[:len(imgs)//2], torch.zeros(1,6).float(), poses[len(imgs)//2:]])
+
+        inv_transform_matrices = pose_vec2mat(Variable(poses), rotation_mode=args.rotation_mode).data.numpy().astype(np.float64)
+
+        rot_matrices = np.linalg.inv(inv_transform_matrices[:,:,:3])
+        tr_vectors = -rot_matrices @ inv_transform_matrices[:,:,-1:]
+
+        transform_matrices = np.concatenate([rot_matrices, tr_vectors], axis=-1)
+
+        first_inv_transform = inv_transform_matrices[0]
+        final_poses = first_inv_transform[:,:3] @ transform_matrices
+        final_poses[:,:,-1:] += first_inv_transform[:,-1:]
+
+        if args.output_dir is not None:
+            predictions_array[j] = final_poses
+
+        ATE, RE = compute_pose_error(sample['poses'], final_poses)
+        errors[j] = ATE, RE
+
+    mean_errors = errors.mean(0)
+    std_errors = errors.std(0)
+    error_names = ['ATE','RE']
+
+    return mean_errors, error_names
+    
 if __name__ == '__main__':
     import sys
     with open("experiment_recorder.md", "a") as f:
