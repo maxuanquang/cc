@@ -32,13 +32,28 @@ from flowutils.flowlib import flow_to_image
 from inverse_warp import pose_vec2mat
 from tqdm import tqdm
 
+from tensorboardX import SummaryWriter
+import torch
+from torch.autograd import Variable
+import models
+import custom_transforms
+from inverse_warp import pose2flow
+from datasets.validation_flow import ValidationMask
+from logger import AverageMeter
+from PIL import Image
+from torchvision.transforms import ToPILImage
+from flowutils.flowlib import flow_to_image
+from utils import tensor2array
+from loss_functions import compute_all_epes
+from scipy.ndimage.interpolation import zoom
+
 epsilon = 1e-8
 
 parser = argparse.ArgumentParser(description='Competitive Collaboration training on KITTI and CityScapes Dataset',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--kitti-dir', dest='kitti_dir', type=str, default='kitti/kitti2015',
+parser.add_argument('--kitti-dir', dest='kitti_dir', type=str, default='/content/drive/MyDrive/Dự án/KITTI Dataset/Stereo/Stereo 2015',
                     help='Path to kitti2015 scene flow dataset for optical flow validation')
 parser.add_argument('--kitti-odometry-dir', dest='kitti_odometry_dir', type=str, default='/content/drive/MyDrive/Dự án/KITTI Dataset/Odometry/dataset',
                     help='Path to kitti odometry dataset for pose validation')
@@ -232,7 +247,16 @@ def main():
                                         sequence_length=args.sequence_length, transform=valid_flow_transform)
 
     if args.with_mask_gt:
-        pass
+        normalize_ = custom_transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                                std=[0.5, 0.5, 0.5])
+        flow_loader_h, flow_loader_w = 256, 832
+        valid_flow_transform_ = custom_transforms.Compose([custom_transforms.Scale(h=flow_loader_h, w=flow_loader_w),
+                                custom_transforms.ArrayToTensor(), normalize_])
+        val_flow_set_ = ValidationMask(root=args.kitti_dir,
+                                    sequence_length=5, transform=valid_flow_transform_)
+
+        val_mask_loader = torch.utils.data.DataLoader(val_flow_set_, batch_size=1, shuffle=False,
+            num_workers=2, pin_memory=True, drop_last=True)
 
     if args.with_pose_gt:
         from kitti_eval.pose_evaluation_utils import test_framework_KITTI as test_framework
@@ -406,8 +430,7 @@ def main():
                 training_writer.add_scalar(name, error, epoch)
 
         if args.with_mask_gt:
-            pass
-            errors, error_names = validate_mask_with_gt(val_mask_loader, disp_net, epoch, logger, output_writers)
+            errors, error_names = validate_mask_with_gt(disp_net, pose_net, mask_net, flow_net, val_mask_loader)
 
             for error, name in zip(errors, error_names):
                 training_writer.add_scalar(name, error, epoch)
@@ -841,14 +864,22 @@ def validate_pose_with_gt(pose_net, framework):
 
         return ATE/snippet_length, RE/snippet_length
 
+    no_resize = False
+    img_width = 832
+    img_height = 256
+    min_depth=1e-3
+    max_depth=80
+    img_exts=['png', 'jpg', 'bmp']
+    rotation_mode='euler'
+
     errors = np.zeros((len(framework), 2), np.float32)
 
     for j, sample in enumerate(tqdm(framework)):
         imgs = sample['imgs']
 
         h,w,_ = imgs[0].shape
-        if (not args.no_resize) and (h != args.img_height or w != args.img_width):
-            imgs = [imresize(img, (args.img_height, args.img_width)).astype(np.float32) for img in imgs]
+        if (not no_resize) and (h != img_height or w != img_width):
+            imgs = [imresize(img, (img_height, img_width)).astype(np.float32) for img in imgs]
 
         imgs = [np.transpose(img, (2,0,1)) for img in imgs]
 
@@ -862,15 +893,12 @@ def validate_pose_with_gt(pose_net, framework):
             else:
                 ref_imgs_var.append(Variable(img, volatile=True))
 
-        if args.posenet in ["PoseNet6", "PoseNetB6"]:
-            poses = pose_net(tgt_img_var, ref_imgs_var)
-        else:
-            _, poses = pose_net(tgt_img_var, ref_imgs_var)
+        poses = pose_net(tgt_img_var, ref_imgs_var)
 
         poses = poses.cpu().data[0]
         poses = torch.cat([poses[:len(imgs)//2], torch.zeros(1,6).float(), poses[len(imgs)//2:]])
 
-        inv_transform_matrices = pose_vec2mat(Variable(poses), rotation_mode=args.rotation_mode).data.numpy().astype(np.float64)
+        inv_transform_matrices = pose_vec2mat(Variable(poses), rotation_mode=rotation_mode).data.numpy().astype(np.float64)
 
         rot_matrices = np.linalg.inv(inv_transform_matrices[:,:,:3])
         tr_vectors = -rot_matrices @ inv_transform_matrices[:,:,-1:]
@@ -881,18 +909,150 @@ def validate_pose_with_gt(pose_net, framework):
         final_poses = first_inv_transform[:,:3] @ transform_matrices
         final_poses[:,:,-1:] += first_inv_transform[:,-1:]
 
-        if args.output_dir is not None:
-            predictions_array[j] = final_poses
-
         ATE, RE = compute_pose_error(sample['poses'], final_poses)
         errors[j] = ATE, RE
+
+        if j==100:
+            break
 
     mean_errors = errors.mean(0)
     std_errors = errors.std(0)
     error_names = ['ATE','RE']
 
     return mean_errors, error_names
-    
+
+def validate_mask_with_gt(disp_net,pose_net,mask_net,flow_net,val_mask_loader):
+
+    def mask_error(mot_gt, seg_gt, pred):
+        max_label = 2
+        tp = np.zeros((max_label))
+        fp = np.zeros((max_label))
+        fn = np.zeros((max_label))
+
+        mot_gt[mot_gt != 0] = 1
+        mov_car_gt = mot_gt
+        mov_car_gt[seg_gt != 26] = 255
+        mot_gt = mov_car_gt
+        r_shape = [float(i) for i in list(pred.shape)]
+        g_shape = [float(i) for i in list(mot_gt.shape)]
+        pred = zoom(pred, (g_shape[0] / r_shape[0],
+                        g_shape[1] / r_shape[1]), order  = 0)
+
+        if len(pred.shape) == 2:
+            mask = pred
+            umask = np.zeros((2, mask.shape[0], mask.shape[1]))
+            umask[0, :, :] = mask
+            umask[1, :, :] = 1. - mask
+            pred = umask
+
+        pred = pred.argmax(axis=0)
+        if (np.max(pred) > (max_label - 1) and np.max(pred)!=255):
+            print('Result has invalid labels: ', np.max(pred))
+        else:
+            # For each class
+            for class_id in range(0, max_label):
+                class_gt = np.equal(mot_gt, class_id)
+                class_result = np.equal(pred, class_id)
+                class_result[np.equal(mot_gt, 255)] = 0
+                tp[class_id] = tp[class_id] +\
+                    np.count_nonzero(class_gt & class_result)
+                fp[class_id] = fp[class_id] +\
+                    np.count_nonzero(class_result & ~class_gt)
+                fn[class_id] = fn[class_id] +\
+                    np.count_nonzero(~class_result & class_gt)
+
+        return [tp[0], fp[0], fn[0], tp[1], fp[1], fn[1]]
+
+    nlevels = 6
+    THRESH = 0.94
+
+    # switch to evaluate mode
+    disp_net.eval()
+    pose_net.eval()
+    mask_net.eval()
+    flow_net.eval()
+
+    error_names = ['tp_0', 'fp_0', 'fn_0', 'tp_1', 'fp_1', 'fn_1']
+    errors = AverageMeter(i=len(error_names))
+    errors_census = AverageMeter(i=len(error_names))
+    errors_bare = AverageMeter(i=len(error_names))
+
+    for i, (tgt_img, ref_imgs, intrinsics, intrinsics_inv, flow_gt, obj_map_gt, semantic_map_gt) in enumerate(tqdm(val_mask_loader)):
+        tgt_img_var = Variable(tgt_img.cuda(), volatile=True)
+        ref_imgs_var = [Variable(img.cuda(), volatile=True) for img in ref_imgs]
+        intrinsics_var = Variable(intrinsics.cuda(), volatile=True)
+        intrinsics_inv_var = Variable(intrinsics_inv.cuda(), volatile=True)
+
+        flow_gt_var = Variable(flow_gt.cuda(), volatile=True)
+        obj_map_gt_var = Variable(obj_map_gt.cuda(), volatile=True)
+
+        disp = disp_net(tgt_img_var)
+        depth = 1/disp
+        pose = pose_net(tgt_img_var, ref_imgs_var)
+        explainability_mask = mask_net(tgt_img_var, ref_imgs_var)
+
+        flow_fwd, flow_bwd, _ = flow_net(tgt_img_var, ref_imgs_var[1:3])
+
+        flow_cam = pose2flow(depth.squeeze(1), pose[:,2], intrinsics_var, intrinsics_inv_var)
+
+        rigidity_mask = 1 - (1-explainability_mask[:,1])*(1-explainability_mask[:,2]).unsqueeze(1) > 0.5
+        rigidity_mask_census_soft = (flow_cam - flow_fwd).pow(2).sum(dim=1).unsqueeze(1).sqrt()#.normalize()
+        rigidity_mask_census_soft = 1 - rigidity_mask_census_soft/rigidity_mask_census_soft.max()
+        rigidity_mask_census = rigidity_mask_census_soft > THRESH
+
+        rigidity_mask_combined = 1 - (1-rigidity_mask.type_as(explainability_mask))*(1-rigidity_mask_census.type_as(explainability_mask))
+
+        flow_fwd_non_rigid = (1- rigidity_mask_combined).type_as(flow_fwd).expand_as(flow_fwd) * flow_fwd
+        flow_fwd_rigid = rigidity_mask_combined.type_as(flow_fwd).expand_as(flow_fwd) * flow_cam
+        total_flow = flow_fwd_rigid + flow_fwd_non_rigid
+
+        obj_map_gt_var_expanded = obj_map_gt_var.unsqueeze(1).type_as(flow_fwd)
+
+        tgt_img_np = tgt_img[0].numpy()
+        rigidity_mask_combined_np = rigidity_mask_combined.cpu().data[0].numpy()
+        rigidity_mask_census_np = rigidity_mask_census.cpu().data[0].numpy()
+        rigidity_mask_bare_np = rigidity_mask.cpu().data[0].numpy()
+
+        gt_mask_np = obj_map_gt[0].numpy()
+        semantic_map_np = semantic_map_gt[0].numpy()
+
+        _errors = mask_error(gt_mask_np, semantic_map_np, rigidity_mask_combined_np[0])
+        _errors_census = mask_error(gt_mask_np, semantic_map_np, rigidity_mask_census_np[0])
+        _errors_bare = mask_error(gt_mask_np, semantic_map_np, rigidity_mask_bare_np[0])
+
+        errors.update(_errors)
+        errors_census.update(_errors_census)
+        errors_bare.update(_errors_bare)
+
+    bg_iou = errors.sum[0] / (errors.sum[0] + errors.sum[1] + errors.sum[2]  )
+    fg_iou = errors.sum[3] / (errors.sum[3] + errors.sum[4] + errors.sum[5]  )
+    avg_iou = (bg_iou + fg_iou)/2
+
+    bg_iou_census = errors_census.sum[0] / (errors_census.sum[0] + errors_census.sum[1] + errors_census.sum[2]  )
+    fg_iou_census = errors_census.sum[3] / (errors_census.sum[3] + errors_census.sum[4] + errors_census.sum[5]  )
+    avg_iou_census = (bg_iou_census + fg_iou_census)/2
+
+    bg_iou_bare = errors_bare.sum[0] / (errors_bare.sum[0] + errors_bare.sum[1] + errors_bare.sum[2]  )
+    fg_iou_bare = errors_bare.sum[3] / (errors_bare.sum[3] + errors_bare.sum[4] + errors_bare.sum[5]  )
+    avg_iou_bare = (bg_iou_bare + fg_iou_bare)/2
+
+    error_names = ['iou_full', 'iou_census', 'iou_bare']
+    errors_return = (avg_iou, avg_iou_census, avg_iou_bare)
+    # print("Results Full Model")
+    # print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
+    # print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou, bg_iou, fg_iou))
+
+    # print("Results Census only")
+    # print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
+    # print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou_census, bg_iou_census, fg_iou_census))
+
+    # print("Results Bare")
+    # print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
+    # print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou_bare, bg_iou_bare, fg_iou_bare))
+    return errors_return, error_names
+
+
+
 if __name__ == '__main__':
     import sys
     with open("experiment_recorder.md", "a") as f:
