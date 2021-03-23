@@ -14,7 +14,6 @@ class KittiRawLoader(object):
                  get_gt=False):
         dir_path = Path(__file__).realpath().dirname()
         test_scene_file = dir_path/'test_scenes.txt'
-        accepted_scene_file = dir_path/'accepted_scenes.txt'
 
         self.from_speed = static_frames_file is None
         if static_frames_file is not None:
@@ -23,19 +22,12 @@ class KittiRawLoader(object):
 
         with open(test_scene_file, 'r') as f:
             test_scenes = f.readlines()
-        with open(accepted_scene_file, 'r') as f:
-            accepted_scenes = f.readlines()
-
-        self.accepted_scenes = [a[:-1] for a in accepted_scenes]
         self.test_scenes = [t[:-1] for t in test_scenes]
-        for item in self.test_scenes:
-            if item not in self.accepted_scenes:
-                self.test_scenes.remove(item)
         self.dataset_dir = Path(dataset_dir)
         self.img_height = img_height
         self.img_width = img_width
         self.cam_ids = ['02', '03']
-        self.date_list = ['2011_09_26']
+        self.date_list = ['2011_09_26', '2011_09_28', '2011_09_29', '2011_09_30', '2011_10_03']
         self.min_speed = min_speed
         self.get_gt = get_gt
         self.collect_train_folders()
@@ -59,8 +51,7 @@ class KittiRawLoader(object):
             drive_set = (self.dataset_dir/date).dirs()
             for dr in drive_set:
                 if dr.name[:-5] not in self.test_scenes:
-                    if dr.name[:-5] in self.accepted_scenes:
-                        self.scenes.append(dr)
+                    self.scenes.append(dr)
 
     def collect_scenes(self, drive):
         train_scenes = []
