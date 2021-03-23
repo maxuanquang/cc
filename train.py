@@ -259,7 +259,7 @@ def main():
             num_workers=2, pin_memory=True, drop_last=True)
 
     if args.with_pose_gt:
-        from kitti_eval.pose_evaluation_utils import test_framework_KITTI as test_framework
+        from kitti_eval.pose_evaluation_utils import test_framework_KITTI_for_pose_validation as test_framework
         framework = test_framework(Path(args.kitti_odometry_dir), ['09'], args.sequence_length)
 
     if args.DEBUG:
@@ -424,12 +424,14 @@ def main():
                 training_writer.add_scalar(name, error, epoch)
 
         if args.with_pose_gt:
+            print('VALIDATING POSE')
             pose_errors, pose_error_names = validate_pose_with_gt(pose_net, framework)
             
             for error, name in zip(pose_errors, pose_error_names):
                 training_writer.add_scalar(name, error, epoch)
 
         if args.with_mask_gt:
+            print('VALIDATING MASK')
             errors, error_names = validate_mask_with_gt(disp_net, pose_net, mask_net, flow_net, val_mask_loader)
 
             for error, name in zip(errors, error_names):

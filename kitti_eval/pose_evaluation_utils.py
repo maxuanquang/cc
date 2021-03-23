@@ -34,6 +34,36 @@ class test_framework_KITTI(object):
         return sum(len(imgs) for imgs in self.img_files)
 
 
+class test_framework_KITTI_for_pose_validation(object):
+    def __init__(self, root, sequence_set, seq_length=3, step=1):
+        self.root = root
+        self.img_files, self.poses, self.sample_indices = read_scene_data(self.root, sequence_set, seq_length, step)
+        self.img_files = self.img_files[:200]
+        self.poses = self.poses[:200]
+        self.sample_indices = self.sample_indices[:200]
+
+    def generator(self):
+        for img_list, pose_list, sample_list in zip(self.img_files, self.poses, self.sample_indices):
+            for snippet_indices in sample_list:
+                imgs = [imread(img_list[i]).astype(np.float32) for i in snippet_indices]
+
+                poses = np.stack(pose_list[i] for i in snippet_indices)
+                first_pose = poses[0]
+                poses[:,:,-1] -= first_pose[:,-1]
+                compensated_poses = np.linalg.inv(first_pose[:,:3]) @ poses
+
+                yield {'imgs': imgs,
+                       'path': img_list[0],
+                       'poses': compensated_poses
+                       }
+
+    def __iter__(self):
+        return self.generator()
+
+    def __len__(self):
+        return sum(len(imgs) for imgs in self.img_files)
+
+
 def read_scene_data(data_root, sequence_set, seq_length=3, step=1):
     data_root = Path(data_root)
     im_sequences = []
