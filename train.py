@@ -416,8 +416,7 @@ def main():
             if args.log_terminal:
                 logger.valid_writer.write(' * Avg {}'.format(error_string_flow))
 
-            # write 'epe_total', 'epe_rigid', 'epe_non_rigid', 'outliers'
-            for error, name in zip(flow_errors[:4], flow_error_names[:4]): 
+            for error, name in zip(flow_errors, flow_error_names): 
                 training_writer.add_scalar(name, error, epoch)
 
         if args.with_depth_gt:
@@ -463,17 +462,25 @@ def main():
 
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
-
-        if not args.fix_posenet:
-            decisive_error = flow_errors[-2]    # epe_rigid_with_gt_mask
-        elif not args.fix_dispnet:
-            decisive_error = depth_errors[0]      #depth abs_diff
-        elif not args.fix_flownet:
-            decisive_error = flow_errors[-1]    #epe_non_rigid_with_gt_mask
-        elif not args.fix_masknet:
+        if (args.fix_dispnet==False and args.fix_flownet==True and args.fix_posenet==False and args.fix_masknet==True): # training R
+            decisive_error = depth_errors[3]      # depth a1
+        elif (args.fix_dispnet==True and args.fix_flownet==False and args.fix_posenet==True and args.fix_masknet==True): # training F
+            decisive_error = flow_errors[-1]    # epe_non_rigid_with_gt_mask
+        elif (args.fix_dispnet==True and args.fix_flownet==True and args.fix_posenet==True and args.fix_masknet==False): # training M
             decisive_error = flow_errors[3]     # percent outliers
         if best_error < 0:
             best_error = decisive_error
+
+        # if not args.fix_posenet: # R
+        #     decisive_error = flow_errors[-2]    # epe_rigid_with_gt_mask
+        # elif not args.fix_dispnet: # R
+        #     decisive_error = depth_errors[0]      #depth abs_diff
+        # elif not args.fix_flownet: # F
+        #     decisive_error = flow_errors[-1]    #epe_non_rigid_with_gt_mask
+        # elif not args.fix_masknet: # M
+        #     decisive_error = flow_errors[3]     # percent outliers
+        # if best_error < 0:
+        #     best_error = decisive_error
 
         # remember lowest error and save checkpoint
         is_best = decisive_error <= best_error
