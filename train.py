@@ -408,7 +408,8 @@ def main():
             print('VALIDATING FLOW')
             flow_errors, flow_error_names = validate_flow_with_gt(val_flow_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers)
             
-            for error, name in zip(flow_errors, flow_error_names):
+            # write 'epe_total', 'epe_rigid', 'epe_non_rigid', 'outliers'
+            for error, name in zip(flow_errors[:4], flow_error_names[:4]): 
                 training_writer.add_scalar(name, error, epoch)
 
         if args.with_depth_gt:
@@ -422,8 +423,11 @@ def main():
             else:
                 print('Epoch {} completed'.format(epoch))
 
-            for error, name in zip(depth_errors, depth_error_names):
-                training_writer.add_scalar(name, error, epoch)
+            # for error, name in zip(depth_errors, depth_error_names):
+            #     training_writer.add_scalar(name, error, epoch)
+
+            # write a1 metric
+            training_writer.add_scalar(depth_error_names[3], depth_errors[3], epoch)
 
         if args.with_pose_gt:
             print('VALIDATING POSE')
@@ -707,11 +711,11 @@ def validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers=[
     if args.log_terminal:
         logger.valid_bar.update(len(val_loader))
 
-    # return only a1
-    return_errors = [errors.avg[3]]
-    return_errors_names = [error_names[3]]
+    # # return only a1
+    # return_errors = [errors.avg[3]]
+    # return_errors_names = [error_names[3]]
 
-    return return_errors, return_errors_names
+    return errors.avg, error_names
 
 def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers=[]):
     global args
@@ -853,11 +857,7 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
         print("DEBUG_INFO =================>")
         print("DEBUG_INFO =================>")
 
-    # return 'epe_total', 'epe_rigid', 'epe_non_rigid', 'outliers'
-    return_errors = errors.avg[:4]
-    return_errors_names = error_names[:4]
-
-    return return_errors, return_errors_names
+    return errors.avg, error_names
 
 def validate_pose_with_gt(pose_net, framework):
     def compute_pose_error(gt, pred):

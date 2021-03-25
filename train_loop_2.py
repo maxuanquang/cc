@@ -494,7 +494,7 @@ def main():
         if len(content) > 2:
             current_val_loss = float(content[-1].split('\t')[-1][:-1])
             previous_val_loss = float(content[-2].split('\t')[-1][:-1])
-            change_rate = abs(current_val_loss-previous_val_loss)/current_val_loss
+            change_rate = abs(current_val_loss-previous_val_loss)/(current_val_loss + 1e-6)
             if change_rate < break_training_threshold:
                 saturation_count += 1
             else:
