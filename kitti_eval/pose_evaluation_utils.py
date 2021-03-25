@@ -89,7 +89,7 @@ def read_scene_data(data_root, sequence_set, seq_length=3, step=1):
         indices_sequences.append(snippet_indices)
     return im_sequences, poses_sequences, indices_sequences
 
-def read_scene_data_for_pose_validation(data_root, sequence_set, seq_length=3, step=1):
+def read_scene_data_for_pose_validation(data_root, sequence_set, seq_length=3, step=1, n_imgs=100):
     data_root = Path(data_root)
     im_sequences = []
     poses_sequences = []
@@ -105,7 +105,7 @@ def read_scene_data_for_pose_validation(data_root, sequence_set, seq_length=3, s
     print('getting test metadata for theses sequences : {}'.format(sequences))
     for sequence in tqdm(sequences):
         poses = np.genfromtxt(data_root/'poses'/'{}.txt'.format(sequence.name)).astype(np.float64).reshape(-1, 3, 4)
-        imgs = sorted((sequence/'image_2').files('*.png'))[:200]
+        imgs = sorted((sequence/'image_2').files('*.png'))[:n_imgs]
         # construct 5-snippet sequences
         tgt_indices = np.arange(demi_length, len(imgs) - demi_length).reshape(-1, 1)
         snippet_indices = shift_range + tgt_indices

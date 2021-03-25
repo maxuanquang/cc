@@ -252,7 +252,7 @@ def main():
         flow_loader_h, flow_loader_w = 256, 832
         valid_flow_transform_ = custom_transforms.Compose([custom_transforms.Scale(h=flow_loader_h, w=flow_loader_w),
                                 custom_transforms.ArrayToTensor(), normalize_])
-        val_flow_set_ = ValidationMask(root=args.kitti_dir,
+        val_flow_set_ = ValidationMask(root=args.kitti_dir, N=100,
                                     sequence_length=5, transform=valid_flow_transform_)
 
         val_mask_loader = torch.utils.data.DataLoader(val_flow_set_, batch_size=1, shuffle=False,
