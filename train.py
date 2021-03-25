@@ -159,14 +159,17 @@ parser.add_argument('--log-terminal', action='store_true', help='will display pr
 parser.add_argument('--resume', action='store_true', help='resume from checkpoint')
 parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
                     metavar='N', default=0)
+parser.add_argument('--break-training-if-saturate', type=bool, default=True)
 
 best_error = -1
 n_iter = 0
 start_epoch = 0
+saturation_count = 0
+break_training_threshold = 0.03
 
 
 def main():
-    global args, best_error, n_iter, start_epoch
+    global args, best_error, n_iter, start_epoch, saturation_count, break_training_threshold, epsilon
     args = parser.parse_args()
     if args.dataset_format == 'stacked':
         from datasets.stacked_sequence_folders import SequenceFolder
@@ -408,6 +411,11 @@ def main():
             print('VALIDATING FLOW')
             flow_errors, flow_error_names = validate_flow_with_gt(val_flow_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers)
             
+            error_string_flow = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(flow_error_names, flow_errors))
+
+            if args.log_terminal:
+                logger.valid_writer.write(' * Avg {}'.format(error_string_flow))
+
             # write 'epe_total', 'epe_rigid', 'epe_non_rigid', 'outliers'
             for error, name in zip(flow_errors[:4], flow_error_names[:4]): 
                 training_writer.add_scalar(name, error, epoch)
@@ -416,12 +424,10 @@ def main():
             print('VALIDATING DEPTH')
             depth_errors, depth_error_names = validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers)
 
-            error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(depth_error_names, depth_errors))
+            error_string_depth = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(depth_error_names, depth_errors))
 
             if args.log_terminal:
-                logger.valid_writer.write(' * Avg {}'.format(error_string))
-            else:
-                print('Epoch {} completed'.format(epoch))
+                logger.valid_writer.write(' * Avg {}'.format(error_string_depth))
 
             # for error, name in zip(depth_errors, depth_error_names):
             #     training_writer.add_scalar(name, error, epoch)
@@ -433,12 +439,24 @@ def main():
             print('VALIDATING POSE')
             pose_errors, pose_error_names = validate_pose_with_gt(pose_net, framework)
             
+            error_string_pose = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(pose_error_names, pose_errors))
+
+            if args.log_terminal:
+                logger.valid_writer.write(' * Avg {}'.format(error_string_pose))
+            
             for error, name in zip(pose_errors, pose_error_names):
                 training_writer.add_scalar(name, error, epoch)
 
         if args.with_mask_gt:
             print('VALIDATING MASK')
             mask_errors, mask_error_names = validate_mask_with_gt(disp_net, pose_net, mask_net, flow_net, val_mask_loader)
+
+            error_string_mask = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(mask_error_names, mask_errors))
+
+            if args.log_terminal:
+                logger.valid_writer.write(' * Avg {}'.format(error_string_mask))
+            else:
+                print('Epoch {} completed'.format(epoch))
 
             for error, name in zip(mask_errors, mask_error_names):
                 training_writer.add_scalar(name, error, epoch)
@@ -488,6 +506,23 @@ def main():
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
             writer.writerow([train_loss, decisive_error])
+
+        # check if model should continue training or not
+        if args.break_training_if_saturate:
+            with open(args.save_path/args.log_summary, 'r') as f:
+                content = f.readlines()
+            if len(content) > 2:
+                current_val_loss = float(content[-1].split('\t')[-1][:-1])
+                previous_val_loss = float(content[-2].split('\t')[-1][:-1])
+                change_rate = abs(current_val_loss-previous_val_loss)/(current_val_loss + epsilon)
+                if change_rate < break_training_threshold:
+                    saturation_count += 1
+                else:
+                    saturation_count = 0
+            if saturation_count > 1:
+                print('Validation loss saturates for more than 1 epochs => breaking training!!!')
+                break
+
     if args.log_terminal:
         logger.epoch_bar.finish()
 
