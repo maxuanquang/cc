@@ -484,6 +484,10 @@ def main():
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
             writer.writerow([train_loss, decisive_error])
+
+        # continue training or not
+        
+
     if args.log_terminal:
         logger.epoch_bar.finish()
 
