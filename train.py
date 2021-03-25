@@ -785,7 +785,7 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
 
         if log_outputs and i % 10 == 0 and i/10 < len(output_writers):
             index = int(i//10)
-            if epoch == 0:
+            if epoch == start_epoch:
                 output_writers[index].add_image('val flow Input', tensor2array(tgt_img[0]), 0)
                 flow_to_show = flow_gt[0][:2,:,:].cpu()
                 output_writers[index].add_image('val target Flow', flow_to_image(tensor2array(flow_to_show)), epoch)
