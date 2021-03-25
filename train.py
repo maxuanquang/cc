@@ -711,7 +711,7 @@ def validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers=[
     return_errors = [errors.avg[3]]
     return_errors_names = [error_names[3]]
 
-    return errors.avg, error_names
+    return return_errors, return_errors_names
 
 def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers=[]):
     global args
@@ -857,7 +857,7 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
     return_errors = errors.avg[:4]
     return_errors_names = error_names[:4]
 
-    return errors.avg, error_names
+    return return_errors, return_errors_names
 
 def validate_pose_with_gt(pose_net, framework):
     def compute_pose_error(gt, pred):
