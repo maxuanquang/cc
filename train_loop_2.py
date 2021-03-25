@@ -159,7 +159,6 @@ parser.add_argument('--log-terminal', action='store_true', help='will display pr
 parser.add_argument('--resume', action='store_true', help='resume from checkpoint')
 parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
                     metavar='N', default=0)
-parser.add_argument('--break-training-if-saturate', type=bool, default=True)
 
 best_error = -1
 n_iter = 0
@@ -411,7 +410,8 @@ def main():
             print('VALIDATING FLOW')
             flow_errors, flow_error_names = validate_flow_with_gt(val_flow_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers)
             
-            for error, name in zip(flow_errors, flow_error_names):
+            # write 'epe_total', 'epe_rigid', 'epe_non_rigid', 'outliers'
+            for error, name in zip(flow_errors[:4], flow_error_names[:4]): 
                 training_writer.add_scalar(name, error, epoch)
 
         if args.with_depth_gt:
@@ -425,8 +425,11 @@ def main():
             else:
                 print('Epoch {} completed'.format(epoch))
 
-            for error, name in zip(depth_errors, depth_error_names):
-                training_writer.add_scalar(name, error, epoch)
+            # for error, name in zip(depth_errors, depth_error_names):
+            #     training_writer.add_scalar(name, error, epoch)
+
+            # write a1 metric
+            training_writer.add_scalar(depth_error_names[3], depth_errors[3], epoch)
 
         if args.with_pose_gt:
             print('VALIDATING POSE')
@@ -489,19 +492,20 @@ def main():
             writer.writerow([train_loss, decisive_error])
 
         # check if continue training or not
-        with open(args.save_path/args.log_summary, 'r') as f:
-            content = f.readlines()
-        if len(content) > 2:
-            current_val_loss = float(content[-1].split('\t')[-1][:-1])
-            previous_val_loss = float(content[-2].split('\t')[-1][:-1])
-            change_rate = abs(current_val_loss-previous_val_loss)/(current_val_loss + 1e-6)
-            if change_rate < break_training_threshold:
-                saturation_count += 1
-            else:
-                saturation_count = 0
-        if saturation_count > 1:
-            print('Validation loss saturates for more than 1 epochs => breaking training!!!')
-            break
+        if args.break_training_if_saturate:
+            with open(args.save_path/args.log_summary, 'r') as f:
+                content = f.readlines()
+            if len(content) > 2:
+                current_val_loss = float(content[-1].split('\t')[-1][:-1])
+                previous_val_loss = float(content[-2].split('\t')[-1][:-1])
+                change_rate = abs(current_val_loss-previous_val_loss)/(current_val_loss + 1e-6)
+                if change_rate < break_training_threshold:
+                    saturation_count += 1
+                else:
+                    saturation_count = 0
+            if saturation_count > 1:
+                print('Validation loss saturates for more than 1 epochs => breaking training!!!')
+                break
 
     if args.log_terminal:
         logger.epoch_bar.finish()
@@ -726,11 +730,11 @@ def validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers=[
     if args.log_terminal:
         logger.valid_bar.update(len(val_loader))
 
-    # return only a1
-    return_errors = [errors.avg[3]]
-    return_errors_names = [error_names[3]]
+    # # return only a1
+    # return_errors = [errors.avg[3]]
+    # return_errors_names = [error_names[3]]
 
-    return return_errors, return_errors_names
+    return errors.avg, error_names
 
 def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers=[]):
     global args
@@ -800,7 +804,7 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
 
         if log_outputs and i % 10 == 0 and i/10 < len(output_writers):
             index = int(i//10)
-            if epoch == 0:
+            if epoch == start_epoch:
                 output_writers[index].add_image('val flow Input', tensor2array(tgt_img[0]), 0)
                 flow_to_show = flow_gt[0][:2,:,:].cpu()
                 output_writers[index].add_image('val target Flow', flow_to_image(tensor2array(flow_to_show)), epoch)
@@ -872,11 +876,7 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
         print("DEBUG_INFO =================>")
         print("DEBUG_INFO =================>")
 
-    # return 'epe_total', 'epe_rigid', 'epe_non_rigid', 'outliers'
-    return_errors = errors.avg[:4]
-    return_errors_names = error_names[:4]
-
-    return return_errors, return_errors_names
+    return errors.avg, error_names
 
 def validate_pose_with_gt(pose_net, framework):
     def compute_pose_error(gt, pred):
