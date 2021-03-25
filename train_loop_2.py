@@ -159,6 +159,7 @@ parser.add_argument('--log-terminal', action='store_true', help='will display pr
 parser.add_argument('--resume', action='store_true', help='resume from checkpoint')
 parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
                     metavar='N', default=0)
+parser.add_argument('--break-training-if-saturate', type=bool, default=True)
 
 best_error = -1
 n_iter = 0
