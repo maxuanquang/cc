@@ -405,12 +405,14 @@ def main():
 
         # evaluate on validation set
         if args.with_flow_gt:
+            print('VALIDATING FLOW')
             flow_errors, flow_error_names = validate_flow_with_gt(val_flow_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers)
             
             for error, name in zip(flow_errors, flow_error_names):
                 training_writer.add_scalar(name, error, epoch)
 
         if args.with_depth_gt:
+            print('VALIDATING DEPTH')
             errors, error_names = validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers)
 
             error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(error_names, errors))
@@ -865,7 +867,7 @@ def validate_pose_with_gt(pose_net, framework):
             RE += np.arctan2(s,c)
 
         return ATE/snippet_length, RE/snippet_length
-
+    from scipy.misc import imresize
     no_resize = False
     img_width = 832
     img_height = 256
@@ -913,9 +915,6 @@ def validate_pose_with_gt(pose_net, framework):
 
         ATE, RE = compute_pose_error(sample['poses'], final_poses)
         errors[j] = ATE, RE
-
-        if j==100:
-            break
 
     mean_errors = errors.mean(0)
     std_errors = errors.std(0)
