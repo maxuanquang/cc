@@ -706,6 +706,11 @@ def validate_depth_with_gt(val_loader, disp_net, epoch, logger, output_writers=[
                 logger.valid_writer.write('valid: Time {} Abs Error {:.4f} ({:.4f})'.format(batch_time, errors.val[0], errors.avg[0]))
     if args.log_terminal:
         logger.valid_bar.update(len(val_loader))
+
+    # return only a1
+    return_errors = [errors.avg[3]]
+    return_errors_names = [error_names[3]]
+
     return errors.avg, error_names
 
 def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, epoch, logger, output_writers=[]):
@@ -847,6 +852,10 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
         print("DEBUG_INFO =================>")
         print("DEBUG_INFO =================>")
         print("DEBUG_INFO =================>")
+
+    # return 'epe_total', 'epe_rigid', 'epe_non_rigid', 'outliers'
+    return_errors = errors.avg[:4]
+    return_errors_names = error_names[:4]
 
     return errors.avg, error_names
 
