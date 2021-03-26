@@ -379,6 +379,8 @@ def main():
         logger=None
 
     for epoch in range(start_epoch,start_epoch+args.epochs):
+        print("TRAINING EPOCH {}".format(epoch))
+
         if args.fix_flownet:
             for fparams in flow_net.parameters():
                 fparams.requires_grad = False
@@ -512,7 +514,7 @@ def main():
 
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
-            writer.writerow([train_loss, decisive_error])
+            writer.writerow([train_loss, decisive_error.item()])
 
         # check if model should continue training or not
         if args.break_training_if_saturate:
