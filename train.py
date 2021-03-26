@@ -159,17 +159,19 @@ parser.add_argument('--log-terminal', action='store_true', help='will display pr
 parser.add_argument('--resume', action='store_true', help='resume from checkpoint')
 parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
                     metavar='N', default=0)
-parser.add_argument('--break-training-if-saturate', type=bool, default=True)
+
+parser.add_argument('--break-training-if-saturate', type=bool, default=True, help='break training process if validation error saturates')
+parser.add_argument('--break-training-value-threshold', type=float, default=0.03, help='if changes in validation error less than value-threshold then it will be considered saturated')
+parser.add_argument('--break-training-count-threshold', type=int, default=2, help='if validation error saturates more than count-threshold then break training process')
 
 best_error = -1
 n_iter = 0
 start_epoch = 0
 saturation_count = 0
-break_training_threshold = 0.03
 
 
 def main():
-    global args, best_error, n_iter, start_epoch, saturation_count, break_training_threshold, epsilon
+    global args, best_error, n_iter, start_epoch, saturation_count, epsilon
     args = parser.parse_args()
     if args.dataset_format == 'stacked':
         from datasets.stacked_sequence_folders import SequenceFolder
@@ -524,12 +526,12 @@ def main():
                 current_val_loss = float(content[-1].split('\t')[-1][:-1])
                 previous_val_loss = float(content[-2].split('\t')[-1][:-1])
                 change_rate = abs(current_val_loss-previous_val_loss)/(current_val_loss + epsilon)
-                if change_rate < break_training_threshold:
+                if change_rate < args.break_training_value_threshold:
                     saturation_count += 1
                 else:
                     saturation_count = 0
-            if saturation_count > 1:
-                print('Validation loss saturates for more than 1 epochs => breaking training!!!')
+            if saturation_count > args.break_training_count_threshold:
+                print('Validation loss saturates for more than {} epochs => breaking training!!!'.format(args.break_training_count_threshold))
                 break
 
     if args.log_terminal:
