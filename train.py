@@ -467,11 +467,11 @@ def main():
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
         if (args.fix_dispnet==False and args.fix_flownet==True and args.fix_posenet==False and args.fix_masknet==True): # training R
-            decisive_error = depth_errors[3]      # depth a1
+            decisive_error = float(depth_errors[3])      # depth a1
         elif (args.fix_dispnet==True and args.fix_flownet==False and args.fix_posenet==True and args.fix_masknet==True): # training F
-            decisive_error = flow_errors[-1]    # epe_non_rigid_with_gt_mask
+            decisive_error = float(flow_errors[-1])    # epe_non_rigid_with_gt_mask
         elif (args.fix_dispnet==True and args.fix_flownet==True and args.fix_posenet==True and args.fix_masknet==False): # training M
-            decisive_error = flow_errors[3]     # percent outliers
+            decisive_error = float(flow_errors[3])     # percent outliers
         if best_error < 0:
             best_error = decisive_error
 
@@ -516,7 +516,7 @@ def main():
 
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
-            writer.writerow([train_loss, decisive_error.item()])
+            writer.writerow([train_loss, decisive_error])
 
         # check if model should continue training or not
         if args.break_training_if_saturate:
