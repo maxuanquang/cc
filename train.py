@@ -160,7 +160,7 @@ parser.add_argument('--resume', action='store_true', help='resume from checkpoin
 parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
                     metavar='N', default=0)
 
-parser.add_argument('--break-training-if-saturate', type=bool, default=True, help='break training process if validation error saturates')
+parser.add_argument('--break-training-if-saturate', action='store_true', help='break training process if validation error saturates')
 parser.add_argument('--break-training-value-threshold', type=float, default=0.03, help='if changes in validation error less than value-threshold then it will be considered saturated')
 parser.add_argument('--break-training-count-threshold', type=int, default=2, help='if validation error saturates more than count-threshold then break training process')
 
