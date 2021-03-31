@@ -399,6 +399,13 @@ def main():
             for fparams in disp_net.parameters():
                 fparams.requires_grad = False
 
+        if not args.fix_dispnet and not args.fix_posenet:
+            print("Training R = (DispNet, PoseNet)")
+        if not args.fix_flownet:
+            print("Training F = Flownet")
+        if not args.fix_masknet:
+            print("Training M = MaskNet")
+
         if args.log_terminal:
             logger.epoch_bar.update(epoch)
             logger.reset_train_bar()
@@ -469,7 +476,7 @@ def main():
         if (args.fix_dispnet==False and args.fix_flownet==True and args.fix_posenet==False and args.fix_masknet==True): # training R
             decisive_error = float(depth_errors[3])      # depth a1
         elif (args.fix_dispnet==True and args.fix_flownet==False and args.fix_posenet==True and args.fix_masknet==True): # training F
-            decisive_error = float(flow_errors[-1])    # epe_non_rigid_with_gt_mask
+            decisive_error = float(flow_errors[-2])    # epe_non_rigid_with_gt_mask
         elif (args.fix_dispnet==True and args.fix_flownet==True and args.fix_posenet==True and args.fix_masknet==False): # training M
             decisive_error = float(flow_errors[3])     # percent outliers
         if best_error < 0:
@@ -480,11 +487,15 @@ def main():
         # elif not args.fix_dispnet: # R
         #     decisive_error = depth_errors[0]      #depth abs_diff
         # elif not args.fix_flownet: # F
-        #     decisive_error = flow_errors[-1]    #epe_non_rigid_with_gt_mask
+        #     decisive_error = flow_errors[-2]    #epe_non_rigid_with_gt_mask
         # elif not args.fix_masknet: # M
         #     decisive_error = flow_errors[3]     # percent outliers
         # if best_error < 0:
         #     best_error = decisive_error
+
+        # error_names = ['epe_total', 'epe_rigid', 'epe_non_rigid', 'outliers', 
+        # 'epe_total_with_gt_mask', 'epe_rigid_with_gt_mask', 
+        # 'epe_non_rigid_with_gt_mask', 'outliers_gt_mask']
 
         # remember lowest error and save checkpoint
         is_best = decisive_error <= best_error
