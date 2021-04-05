@@ -1122,6 +1122,6 @@ def validate_mask_with_gt(disp_net,pose_net,mask_net,flow_net,val_mask_loader):
 
 if __name__ == '__main__':
     import sys
-    with open("experiment_recorder.md", "a") as f:
+    with open("/content/drive/MyDrive/VinAI/Motion segmentation/experiment_recorder.md", "a") as f:
         f.write('\n python3 ' + ' '.join(sys.argv))
     main()
