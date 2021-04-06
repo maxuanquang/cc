@@ -366,13 +366,14 @@ def main():
         optimizer_weights = torch.load(args.save_path/'optimizer_checkpoint.pth.tar')
         optimizer.load_state_dict(optimizer_weights['state_dict'])
 
-    with open(args.save_path/args.log_summary, 'w') as csvfile:
-        writer = csv.writer(csvfile, delimiter='\t')
-        writer.writerow(['train_loss', 'validation_loss'])
+    if not args.resume:
+        with open(args.save_path/args.log_summary, 'w') as csvfile:
+            writer = csv.writer(csvfile, delimiter='\t')
+            writer.writerow(['train_loss', 'validation_loss'])
 
-    with open(args.save_path/args.log_full, 'w') as csvfile:
-        writer = csv.writer(csvfile, delimiter='\t')
-        writer.writerow(['train_loss', 'photo_cam_loss', 'photo_flow_loss', 'explainability_loss', 'smooth_loss'])
+        with open(args.save_path/args.log_full, 'w') as csvfile:
+            writer = csv.writer(csvfile, delimiter='\t')
+            writer.writerow(['train_loss', 'photo_cam_loss', 'photo_flow_loss', 'explainability_loss', 'smooth_loss'])
 
     if args.log_terminal:
         logger = TermLogger(n_epochs=start_epoch+args.epochs, train_size=min(len(train_loader), args.epoch_size), valid_size=len(val_loader))
