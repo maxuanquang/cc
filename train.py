@@ -124,6 +124,8 @@ parser.add_argument('--pretrained-pose', dest='pretrained_pose', default=None, m
                     help='path to pre-trained Exp Pose net model')
 parser.add_argument('--pretrained-flow', dest='pretrained_flow', default=None, metavar='PATH',
                     help='path to pre-trained Flow net model')
+parser.add_argument('--pretrained-flow-lua', dest='pretrained_flow_lua', default=None, metavar='PATH',
+                    help='path to pre-trained Flow net model converted from Lua model')
 
 parser.add_argument('--spatial-normalize', dest='spatial_normalize', action='store_true', help='spatially normalize depth maps')
 parser.add_argument('--robust', dest='robust', action='store_true', help='train using robust losses')
@@ -328,6 +330,10 @@ def main():
         print("=> using pre-trained weights for FlowNet")
         weights = torch.load(args.pretrained_flow)
         flow_net.load_state_dict(weights['state_dict'])
+    elif args.pretrained_flow_lua:
+        print("=> using pre-trained weights for FlowNet")
+        weights = torch.load(args.pretrained_flow_lua)
+        flow_net.load_state_dict(weights)
     else:
         flow_net.init_weights()
 
