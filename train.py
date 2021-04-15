@@ -646,7 +646,18 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
         loss_5 = consensus_depth_flow_mask(explainability_mask, rigidity_mask_bwd, rigidity_mask_fwd,
                                         exp_masks_target, exp_masks_target, THRESH=args.THRESH, wbce=args.wbce)
 
-        
+        # w1 = args.cam_photo_loss_weight
+        # w2 = args.mask_loss_weight
+        # w3 = args.smooth_loss_weight
+        # w4 = args.flow_photo_loss_weight
+        # w5 = args.consensus_loss_weight
+
+        # loss_1 = loss_camera
+        # loss_2 = explainability_loss
+        # loss_3 = edge_aware_smoothness_loss
+        # loss_4 = loss_flow
+        # loss_5 = consensus_depth_flow_mask
+
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3 + w4*loss_4 + w5*loss_5
 
         if i > 0 and n_iter % args.print_freq == 0:
@@ -893,7 +904,7 @@ def validate_flow_with_gt(val_loader, disp_net, pose_net, mask_net, flow_net, ep
 
         if np.isnan(flow_gt.sum().item()) or np.isnan(total_flow.data.sum().item()):
             print('NaN encountered')
-        _epe_errors = compute_all_epes(flow_gt_var, flow_cam, flow_fwd, rigidity_mask_combined) + compute_all_epes(flow_gt_var, flow_cam, flow_fwd, (1-obj_map_gt_var_expanded) )
+        _epe_errors = compute_all_epes(flow_gt_var, flow_cam, flow_fwd, rigidity_mask_combined) + compute_all_epes(flow_gt_var, flow_cam, flow_fwd, (1-obj_map_gt_var_expanded))
         errors.update(_epe_errors)
 
         if args.DEBUG:

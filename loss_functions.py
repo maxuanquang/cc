@@ -71,7 +71,7 @@ def photometric_flow_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_
         flow_at_scale = [uv[i] for uv in flows]
         occ_mask_at_scale_bw, occ_mask_at_scale_fw  = occlusion_masks(flow_at_scale[0], flow_at_scale[1])
         occ_mask_at_scale = torch.stack((occ_mask_at_scale_bw, occ_mask_at_scale_fw), dim=1)
-        # occ_mask_at_scale = None
+        occ_mask_at_scale = None
         loss += one_scale(explainability_mask[i], occ_mask_at_scale, flow_at_scale)
 
     return loss
