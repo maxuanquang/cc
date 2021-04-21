@@ -446,11 +446,11 @@ def main():
             if args.log_terminal:
                 logger.valid_writer.write(' * Avg {}'.format(error_string_depth))
 
-            # for error, name in zip(depth_errors, depth_error_names):
-            #     training_writer.add_scalar(name, error, epoch)
+            for error, name in zip(depth_errors, depth_error_names):
+                training_writer.add_scalar(name, error, epoch)
 
             # write a1 metric
-            training_writer.add_scalar(depth_error_names[3], depth_errors[3], epoch)
+            # training_writer.add_scalar(depth_error_names[3], depth_errors[3], epoch)
 
         if args.with_pose_gt:
             print('VALIDATING POSE')
@@ -481,7 +481,7 @@ def main():
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
         if (args.fix_dispnet==False and args.fix_flownet==True and args.fix_posenet==False and args.fix_masknet==True): # training R
-            decisive_error = float(depth_errors[3])      # depth a1
+            decisive_error = float(depth_errors[0])      # depth abs_diff
         elif (args.fix_dispnet==True and args.fix_flownet==False and args.fix_posenet==True and args.fix_masknet==True): # training F
             decisive_error = float(flow_errors[-2])    # epe_non_rigid_with_gt_mask
         elif (args.fix_dispnet==True and args.fix_flownet==True and args.fix_posenet==True and args.fix_masknet==False): # training M
