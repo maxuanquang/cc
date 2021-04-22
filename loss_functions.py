@@ -24,7 +24,7 @@ def robust_l1_per_pix(x, q=0.5, eps=1e-2):
     x = torch.pow((x.pow(2) + eps), q)
     return x
 
-def photometric_flow_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch=0.5, wssim=0.5):
+def photometric_flow_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch=0.5, wssim=0.5, use_occ_mask_at_scale=False):
     def one_scale(explainability_mask, occ_masks, flows):
         assert(explainability_mask is None or flows[0].size()[2:] == explainability_mask.size()[2:])
         assert(len(flows) == len(ref_imgs))
@@ -71,7 +71,8 @@ def photometric_flow_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_
         flow_at_scale = [uv[i] for uv in flows]
         occ_mask_at_scale_bw, occ_mask_at_scale_fw  = occlusion_masks(flow_at_scale[0], flow_at_scale[1])
         occ_mask_at_scale = torch.stack((occ_mask_at_scale_bw, occ_mask_at_scale_fw), dim=1)
-        occ_mask_at_scale = None
+        if use_occ_mask_at_scale == False:
+            occ_mask_at_scale = None
         loss += one_scale(explainability_mask[i], occ_mask_at_scale, flow_at_scale)
 
     return loss

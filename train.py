@@ -131,6 +131,7 @@ parser.add_argument('--spatial-normalize', dest='spatial_normalize', action='sto
 parser.add_argument('--robust', dest='robust', action='store_true', help='train using robust losses')
 parser.add_argument('--no-non-rigid-mask', dest='no_non_rigid_mask', action='store_true', help='will not use mask on loss of non-rigid flow')
 parser.add_argument('--joint-mask-for-depth', dest='joint_mask_for_depth', action='store_true', help='use joint mask from masknet and consensus mask for depth training')
+parser.add_argument('--occ-mask-at-scale', dest='occ_mask_at_scale', action='store_true', help='use occlusion mask at scale for flow photometric loss')
 
 parser.add_argument('--fix-masknet', dest='fix_masknet', action='store_true', help='do not train posenet')
 parser.add_argument('--fix-posenet', dest='fix_posenet', action='store_true', help='do not train posenet')
@@ -641,7 +642,7 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
             loss_3 += edge_aware_smoothness_loss(tgt_img_var, flow_bwd) + edge_aware_smoothness_loss(tgt_img_var, explainability_mask)
 
         loss_4 = loss_flow(tgt_img_var, ref_imgs_var[1:3], [flow_bwd, flow_fwd], flow_exp_mask,
-                                        lambda_oob=args.lambda_oob, qch=args.qch, wssim=args.wssim)
+                                        lambda_oob=args.lambda_oob, qch=args.qch, wssim=args.wssim, use_occ_mask_at_scale=args.occ_mask_at_scale)
 
         loss_5 = consensus_depth_flow_mask(explainability_mask, rigidity_mask_bwd, rigidity_mask_fwd,
                                         exp_masks_target, exp_masks_target, THRESH=args.THRESH, wbce=args.wbce)
