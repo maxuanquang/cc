@@ -481,7 +481,7 @@ def main():
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
         if (args.fix_dispnet==False and args.fix_flownet==True and args.fix_posenet==False and args.fix_masknet==True): # training R
-            decisive_error = float(depth_errors[1])      # depth abs_rel
+            decisive_error = float(depth_errors[3])*(-1)      # minus depth a1
         elif (args.fix_dispnet==True and args.fix_flownet==False and args.fix_posenet==True and args.fix_masknet==True): # training F
             decisive_error = float(flow_errors[-2])    # epe_non_rigid_with_gt_mask
         elif (args.fix_dispnet==True and args.fix_flownet==True and args.fix_posenet==True and args.fix_masknet==False): # training M
