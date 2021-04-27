@@ -487,8 +487,8 @@ def main():
             decisive_error = float(flow_errors[-2])    # epe_non_rigid_with_gt_mask
         elif (args.fix_dispnet==True and args.fix_flownet==True and args.fix_posenet==True and args.fix_masknet==False): # training M
             decisive_error = float(flow_errors[3])     # percent outliers
-#         if best_error < 0:
-#             best_error = decisive_error
+        if best_error == -1000:
+            best_error = decisive_error
 
         # if not args.fix_posenet: # R
         #     decisive_error = flow_errors[-2]    # epe_rigid_with_gt_mask
