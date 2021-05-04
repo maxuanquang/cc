@@ -352,7 +352,19 @@ def main():
             n_iter = int(f.readline())
         with open(os.path.join(args.save_path,'start_epoch.txt'),'r') as f:
             start_epoch = int(f.readline())
-
+        # read best_error
+        with open(args.save_path/args.log_summary, 'r') as f:
+            content = f.readlines()
+        content = content[1:]
+        if len(content) == 0:
+            pass
+        else:
+            val_errors = []
+            for line in content:
+                val = line.split('\t')[-1][:-1]
+                val_errors.append(val)
+            val_errors = np.asarray(val_errors,dtype=np.float)
+            best_error = np.min(val_errors)
 
     # import ipdb; ipdb.set_trace()
     cudnn.benchmark = True
