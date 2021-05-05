@@ -1136,17 +1136,17 @@ def validate_mask_with_gt(disp_net,pose_net,mask_net,flow_net,val_mask_loader):
 
     error_names = ['iou_full', 'iou_census', 'iou_bare']
     errors_return = (avg_iou, avg_iou_census, avg_iou_bare)
-    # print("Results Full Model")
-    # print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
-    # print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou, bg_iou, fg_iou))
+    print("Results Full Model")
+    print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
+    print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou, bg_iou, fg_iou))
 
-    # print("Results Census only")
-    # print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
-    # print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou_census, bg_iou_census, fg_iou_census))
+    print("Results Census only")
+    print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
+    print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou_census, bg_iou_census, fg_iou_census))
 
-    # print("Results Bare")
-    # print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
-    # print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou_bare, bg_iou_bare, fg_iou_bare))
+    print("Results Bare")
+    print("\t {:>10}, {:>10}, {:>10} ".format('iou', 'bg_iou', 'fg_iou'))
+    print("Errors \t {:10.4f}, {:10.4f} {:10.4f}".format(avg_iou_bare, bg_iou_bare, fg_iou_bare))
     return errors_return, error_names
 
 
