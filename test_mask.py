@@ -64,12 +64,18 @@ def main():
         gt_dir = args.output_dir/'gt'
         mask_dir = args.output_dir/'mask'
         viz_dir = args.output_dir/'viz'
+        rigidity_mask_dir = args.output_dir/'rigidity'
+        rigidity_census_mask_dir = args.output_dir/'rigidity_census'
+        explainability_mask_dir = args.output_dir/'explainability'
 
         image_dir.makedirs_p()
         gt_dir.makedirs_p()
         mask_dir.makedirs_p()
         viz_dir.makedirs_p()
-
+        rigidity_mask_dir.makedirs_p()
+        rigidity_census_mask_dir.makedirs_p()
+        explainability_mask_dir.makedirs_p()
+        
         output_writer = SummaryWriter(args.output_dir)
 
     normalize = custom_transforms.Normalize(mean=[0.5, 0.5, 0.5],
@@ -159,6 +165,11 @@ def main():
             np.save(image_dir/str(i).zfill(3), tgt_img_np )
             np.save(gt_dir/str(i).zfill(3), gt_mask_np)
             np.save(mask_dir/str(i).zfill(3), rigidity_mask_combined_np)
+            np.save(rigidity_mask_dir/str(i).zfill(3), rigidity_mask.cpu().data[0].numpy())
+            np.save(rigidity_census_mask_dir/str(i).zfill(3), rigidity_mask_census.cpu().data[0].numpy())
+            np.save(explainability_mask_dir/str(i).zfill(3), explainability_mask[:,1].cpu().data[0].numpy())
+            # rigidity_mask_dir rigidity_mask.numpy()
+            # rigidity_census_mask_dir rigidity_mask_census.numpy()
 
 
 
