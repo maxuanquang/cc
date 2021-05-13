@@ -112,7 +112,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
                 diff = diff *(1-occ_masks[:,i:i+1]).expand_as(diff)
                 ssim_loss = ssim_loss*(1-occ_masks[:,i:i+1]).expand_as(ssim_loss)
 
-            reconstruction_loss +=  (1- wssim)*oob_normalization_const*(robust_l1(diff, q=qch) + wssim*weight*ssim_loss.mean()) + lambda_oob*robust_l1(1 - valid_pixels, q=qch)
+            reconstruction_loss +=  oob_normalization_const*((1- wssim)*robust_l1_per_pix(diff, q=qch) + weight*wssim*ssim_loss).min() + lambda_oob*robust_l1(1 - valid_pixels, q=qch)
             assert((reconstruction_loss == reconstruction_loss).item() == 1)
             #weight /= 2.83
         return reconstruction_loss
