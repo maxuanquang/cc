@@ -92,7 +92,10 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
         intrinsics_scaled = torch.cat((intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
         intrinsics_scaled_inv = torch.cat((intrinsics_inv[:, :, 0:2]*downscale, intrinsics_inv[:, :, 2:]), dim=2)
 
-        weight = 0.5
+        weight = 1.0
+
+        ssim_losses = []
+        photometric_losses = []
 
         for i, ref_img in enumerate(ref_imgs_scaled):
             current_pose = pose[:, i]
@@ -112,9 +115,16 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
                 diff = diff *(1-occ_masks[:,i:i+1]).expand_as(diff)
                 ssim_loss = ssim_loss*(1-occ_masks[:,i:i+1]).expand_as(ssim_loss)
 
-            reconstruction_loss +=  oob_normalization_const*((1- wssim)*robust_l1_per_pix(diff, q=qch) + weight*wssim*ssim_loss).min() + lambda_oob*robust_l1(1 - valid_pixels, q=qch)
-            assert((reconstruction_loss == reconstruction_loss).item() == 1)
+            # reconstruction_loss +=  oob_normalization_const*((1- wssim)*robust_l1_per_pix(diff, q=qch) + weight*wssim*ssim_loss).min() + lambda_oob*robust_l1(1 - valid_pixels, q=qch)
+            ssim_losses.append(oob_normalization_const*weight*wssim*ssim_loss)
+            photometric_losses.append(oob_normalization_const*(1- wssim)*robust_l1(diff, q=qch) + lambda_oob*robust_l1(1 - valid_pixels, q=qch))
+            # assert((reconstruction_loss == reconstruction_loss).item() == 1)
             #weight /= 2.83
+        
+        ssim_losses = torch.stack(ssim_losses)
+        photometric_losses = torch.stack(photometric_losses)
+        reconstruction_loss = torch.min(ssim_losses,0)[0].mean() + torch.mean(photometric_losses)
+        
         return reconstruction_loss
 
     if type(explainability_mask) not in [tuple, list]:
