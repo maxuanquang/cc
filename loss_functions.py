@@ -15,6 +15,11 @@ def spatial_normalize(disp):
     disp = disp / _mean
     return disp
 
+def l1(x, q=0.5, eps=1e-2):
+    x = torch.abs(x)
+    x = x.mean()
+    return x
+
 def robust_l1(x, q=0.5, eps=1e-2):
     x = torch.pow((x.pow(2) + eps), q)
     x = x.mean()
@@ -77,7 +82,6 @@ def photometric_flow_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_
 
     return loss
 
-
 def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_inv, depth, explainability_mask, pose, rotation_mode='euler', padding_mode='zeros', lambda_oob=0, qch=0.5, wssim=0.5):
     def one_scale(depth, explainability_mask, occ_masks):
         assert(explainability_mask is None or depth.size()[2:] == explainability_mask.size()[2:])
@@ -92,7 +96,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
         intrinsics_scaled = torch.cat((intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
         intrinsics_scaled_inv = torch.cat((intrinsics_inv[:, :, 0:2]*downscale, intrinsics_inv[:, :, 2:]), dim=2)
 
-        weight = 1.0
+        weight = 0.5
 
         ssim_losses = []
         photometric_losses = []
@@ -117,7 +121,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
 
             # reconstruction_loss +=  oob_normalization_const*((1- wssim)*robust_l1_per_pix(diff, q=qch) + weight*wssim*ssim_loss).min() + lambda_oob*robust_l1(1 - valid_pixels, q=qch)
             ssim_losses.append(oob_normalization_const*weight*wssim*ssim_loss)
-            photometric_losses.append(oob_normalization_const*(1- wssim)*robust_l1(diff, q=qch) + lambda_oob*robust_l1(1 - valid_pixels, q=qch))
+            photometric_losses.append(oob_normalization_const*(1 - wssim)*l1(diff, q=qch) + lambda_oob*l1(1 - valid_pixels, q=qch))
             # assert((reconstruction_loss == reconstruction_loss).item() == 1)
             #weight /= 2.83
         
@@ -138,8 +142,6 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
         loss += one_scale(d, mask, occ_masks)
     return loss
 
-
-
 def depth_occlusion_masks(depth, pose, intrinsics, intrinsics_inv):
     flow_cam = [pose2flow(depth.squeeze(), pose[:,i], intrinsics, intrinsics_inv) for i in range(pose.size(1))]
     masks1, masks2 = occlusion_masks(flow_cam[1], flow_cam[2])
@@ -154,7 +156,6 @@ def gaussian_explainability_loss(mask):
     for mask_scaled in mask:
         loss += torch.exp(-torch.mean((mask_scaled-0.5).pow(2))/0.15)
     return loss
-
 
 def explainability_loss(mask):
     if type(mask) not in [tuple, list]:
@@ -294,7 +295,6 @@ def edge_aware_smoothness_per_pixel(img, pred):
     import ipdb; ipdb.set_trace()
     return smoothness_x + smoothness_y
 
-
 def edge_aware_smoothness_loss(img, pred_disp):
     def gradient_x(img):
       gx = img[:,:,:-1,:] - img[:,:,1:,:]
@@ -328,8 +328,6 @@ def edge_aware_smoothness_loss(img, pred_disp):
         weight /= 2.3   # 2sqrt(2)
 
     return loss
-
-
 
 def smooth_loss(pred_disp):
     def gradient(pred):
@@ -374,7 +372,6 @@ def flow_diff(gt, pred):
     diff = torch.sqrt(torch.pow((u_gt - u_pred), 2) + torch.pow((v_gt - v_pred), 2))
 
     return diff
-
 
 def compute_epe(gt, pred):
     _, _, h_pred, w_pred = pred.size()
@@ -438,7 +435,6 @@ def compute_all_epes(gt, rigid_pred, non_rigid_pred, rigidity_mask, THRESH=0.5):
     outliers = outlier_err(gt, total_pred)
 
     return [all_epe, rigid_epe, non_rigid_epe, outliers]
-
 
 def compute_errors(gt, pred, crop=True):
     abs_diff, abs_rel, sq_rel, a1, a2, a3 = 0,0,0,0,0,0
