@@ -98,8 +98,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
 
         weight = 0.5
 
-        ssim_losses = []
-        photometric_losses = []
+        pe_losses = []
 
         for i, ref_img in enumerate(ref_imgs_scaled):
             current_pose = pose[:, i]
@@ -120,21 +119,15 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
                 ssim_loss = ssim_loss*(1-occ_masks[:,i:i+1]).expand_as(ssim_loss)
 
             # reconstruction_loss +=  oob_normalization_const*((1- wssim)*robust_l1_per_pix(diff, q=qch) + weight*wssim*ssim_loss).min() + lambda_oob*robust_l1(1 - valid_pixels, q=qch)
-            ssim_losses.append(oob_normalization_const*weight*wssim*ssim_loss.mean(1))
-            photometric_losses.append(oob_normalization_const*(1 - wssim)*robust_l1_per_pix(diff, q=qch).mean(1) + lambda_oob*robust_l1_per_pix(1 - valid_pixels, q=qch).mean(1))
+            pe = oob_normalization_const*weight*wssim*ssim_loss + oob_normalization_const*(1 - wssim)*robust_l1_per_pix(diff, q=qch) + lambda_oob*robust_l1_per_pix(1 - valid_pixels, q=qch) 
+            pe = pe.mean(1)
+            pe_losses.append(pe)
             # assert((reconstruction_loss == reconstruction_loss).item() == 1)
             #weight /= 2.83
-        
-        ssim_losses = torch.stack(ssim_losses)
-        photometric_losses = torch.stack(photometric_losses)
 
-        ssim_losses = ssim_losses.min(0)[0]
-        photometric_losses = photometric_losses.min(0)[0]
-
-        ssim_losses = ssim_losses.mean()
-        photometric_losses = photometric_losses.mean()
-
-        reconstruction_loss = ssim_losses + photometric_losses
+        pe_losses = torch.stack(pe_losses)
+        pe_losses = pe_losses.min(0)[0]
+        reconstruction_loss = pe_losses.mean()
         
         return reconstruction_loss
 
