@@ -125,16 +125,16 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
             # assert((reconstruction_loss == reconstruction_loss).item() == 1)
             #weight /= 2.83
         
-            ssim_losses = torch.stack(ssim_losses)
-            photometric_losses = torch.stack(photometric_losses)
+        ssim_losses = torch.stack(ssim_losses)
+        photometric_losses = torch.stack(photometric_losses)
 
-            ssim_losses = ssim_losses.min(0)[0]
-            photometric_losses = photometric_losses.min(0)[0]
+        ssim_losses = ssim_losses.min(0)[0]
+        photometric_losses = photometric_losses.min(0)[0]
 
-            ssim_losses = ssim_losses.mean()
-            photometric_losses = photometric_losses.mean()
+        ssim_losses = ssim_losses.mean()
+        photometric_losses = photometric_losses.mean()
 
-            reconstruction_loss = ssim_losses + photometric_losses
+        reconstruction_loss = ssim_losses + photometric_losses
         
         return reconstruction_loss
 
