@@ -120,14 +120,21 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
                 ssim_loss = ssim_loss*(1-occ_masks[:,i:i+1]).expand_as(ssim_loss)
 
             # reconstruction_loss +=  oob_normalization_const*((1- wssim)*robust_l1_per_pix(diff, q=qch) + weight*wssim*ssim_loss).min() + lambda_oob*robust_l1(1 - valid_pixels, q=qch)
-            ssim_losses.append(oob_normalization_const*weight*wssim*ssim_loss)
-            photometric_losses.append(oob_normalization_const*(1 - wssim)*robust_l1(diff, q=qch) + lambda_oob*robust_l1(1 - valid_pixels, q=qch))
+            ssim_losses.append(oob_normalization_const*weight*wssim*ssim_loss.mean(1))
+            photometric_losses.append(oob_normalization_const*(1 - wssim)*robust_l1_per_pix(diff, q=qch) + lambda_oob*robust_l1_per_pix(1 - valid_pixels, q=qch))
             # assert((reconstruction_loss == reconstruction_loss).item() == 1)
             #weight /= 2.83
         
-        ssim_losses = torch.stack(ssim_losses)
-        photometric_losses = torch.stack(photometric_losses)
-        reconstruction_loss = torch.min(ssim_losses,0)[0].mean() + torch.mean(photometric_losses)
+            ssim_losses = torch.stack(ssim_losses)
+            photometric_losses = torch.stack(photometric_losses)
+
+            ssim_losses = ssim_losses.min(0)[0]
+            photometric_losses = photometric_losses.min(0)[0]
+
+            ssim_losses = ssim_losses.mean()
+            photometric_losses = photometric_losses.mean()
+
+            reconstruction_loss = ssim_losses + photometric_losses
         
         return reconstruction_loss
 
