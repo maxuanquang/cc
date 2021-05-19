@@ -190,6 +190,7 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
         kernel = torch.reshape(
             torch.eye(patch_size * patch_size),
             (patch_size * patch_size, 1, patch_size, patch_size))
+        kernel.cuda()
         if patch_size % 2 != 0:
             padding_ = math.ceil(patch_size/2-1)
         else:
