@@ -21,7 +21,7 @@ import models
 from utils import tensor2array, save_checkpoint
 from inverse_warp import inverse_warp, pose2flow, flow2oob, flow_warp
 from loss_functions import compute_joint_mask_for_depth
-from loss_functions import consensus_exp_masks, consensus_depth_flow_mask, explainability_loss, gaussian_explainability_loss, smooth_loss, edge_aware_smoothness_loss
+from loss_functions import consensus_exp_masks, consensus_depth_flow_mask, explainability_loss, gaussian_explainability_loss, smooth_loss, edge_aware_smoothness_loss, census_loss
 from loss_functions import photometric_reconstruction_loss, photometric_flow_loss
 from loss_functions import compute_errors, compute_epe, compute_all_epes, flow_diff, spatial_normalize
 from logger import TermLogger, AverageMeter
@@ -155,6 +155,8 @@ parser.add_argument('-pf', '--flow-photo-loss-weight', type=float, help='weight 
 parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for explainabilty mask loss', metavar='W', default=0)
 parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', metavar='W', default=0.1)
 parser.add_argument('-c', '--consensus-loss-weight', type=float, help='weight for mask consistancy', metavar='W', default=0.1)
+parser.add_argument('-cs', '--census-loss-weight', type=float, help='weight for census loss', metavar='W', default=0.1)
+
 parser.add_argument('--THRESH', '--THRESH', type=float, help='threshold for masks', metavar='W', default=0.01)
 parser.add_argument('--lambda-oob', type=float, help='weight on the out of bound pixels', default=0)
 parser.add_argument('--log-output', action='store_true', help='will log dispnet outputs and warped imgs at validation step')
@@ -579,6 +581,7 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
     w3 = args.smooth_loss_weight
     w4 = args.flow_photo_loss_weight
     w5 = args.consensus_loss_weight
+    w6 = args.census_loss_weight
 
     if args.robust:
         loss_camera = photometric_reconstruction_loss_robust
@@ -659,19 +662,24 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
         loss_5 = consensus_depth_flow_mask(explainability_mask, rigidity_mask_bwd, rigidity_mask_fwd,
                                         exp_masks_target, exp_masks_target, THRESH=args.THRESH, wbce=args.wbce)
 
+        loss_6 = census_loss(tgt_img_var, ref_imgs_var[1:3], [flow_bwd, flow_fwd], flow_exp_mask,
+                                        lambda_oob=args.lambda_oob, qch=args.qch, wssim=args.wssim, use_occ_mask_at_scale=args.occ_mask_at_scale)
+
         # w1 = args.cam_photo_loss_weight
         # w2 = args.mask_loss_weight
         # w3 = args.smooth_loss_weight
         # w4 = args.flow_photo_loss_weight
         # w5 = args.consensus_loss_weight
+        # w6 = args.census_loss_weight
 
         # loss_1 = loss_camera
         # loss_2 = explainability_loss
         # loss_3 = edge_aware_smoothness_loss
         # loss_4 = loss_flow
         # loss_5 = consensus_depth_flow_mask
+        # loss_6 = census_loss
 
-        loss = w1*loss_1 + w2*loss_2 + w3*loss_3 + w4*loss_4 + w5*loss_5
+        loss = w1*loss_1 + w2*loss_2 + w3*loss_3 + w4*loss_4 + w5*loss_5 + w6*loss_6
 
         if i > 0 and n_iter % args.print_freq == 0:
             train_writer.add_scalar('cam_photometric_error', loss_1.item(), n_iter)
@@ -680,6 +688,7 @@ def train(train_loader, disp_net, pose_net, mask_net, flow_net, optimizer, epoch
             train_writer.add_scalar('disparity_smoothness_loss', loss_3.item(), n_iter)
             train_writer.add_scalar('flow_photometric_error', loss_4.item(), n_iter)
             train_writer.add_scalar('consensus_error', loss_5.item(), n_iter)
+            train_writer.add_scalar('census_error', loss_6.item(), n_iter)
             train_writer.add_scalar('total_loss', loss.item(), n_iter)
 
 
