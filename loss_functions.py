@@ -202,7 +202,8 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
         diff = neighbors - intensities
         #   print(diff.shape)
         # Coefficients adopted from DDFlow.
-        diff_norm = diff / torch.sqrt(.81 + torch.square(diff))
+        # diff_norm = diff / torch.sqrt(.81 + torch.square(diff))
+        diff_norm = diff / torch.sqrt(.81 + diff.pow(2))
         return diff_norm
 
     def soft_hamming_torch(a_bkhw, b_bkhw, thresh=.1):
