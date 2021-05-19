@@ -53,9 +53,9 @@ parser = argparse.ArgumentParser(description='Competitive Collaboration training
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--kitti-dir', dest='kitti_dir', type=str, default='/home/ubuntu/KITTI Dataset/Stereo/Stereo 2015',
+parser.add_argument('--kitti-dir', dest='kitti_dir', type=str, default='/content/drive/MyDrive/Dự án/KITTI Dataset/Stereo/Stereo 2015',
                     help='Path to kitti2015 scene flow dataset for optical flow validation')
-parser.add_argument('--kitti-odometry-dir', dest='kitti_odometry_dir', type=str, default='/home/ubuntu/KITTI Dataset/Odometry/dataset',
+parser.add_argument('--kitti-odometry-dir', dest='kitti_odometry_dir', type=str, default='/content/drive/MyDrive/Dự án/KITTI Dataset/Odometry/dataset',
                     help='Path to kitti odometry dataset for pose validation')
 parser.add_argument('--DEBUG', action='store_true', help='DEBUG Mode')
 parser.add_argument('--name', dest='name', type=str, default='demo', required=True,
@@ -183,7 +183,7 @@ def main():
     elif args.dataset_format == 'sequential':
         from datasets.sequence_folders import SequenceFolder
     save_path = Path(args.name)
-    args.save_path = '/home/ubuntu/Motion segmentation/checkpoints'/save_path #/timestamp
+    args.save_path = '/content/drive/MyDrive/VinAI/Motion segmentation/checkpoints'/save_path #/timestamp
     print('=> will save everything to {}'.format(args.save_path))
     args.save_path.makedirs_p()
     torch.manual_seed(args.seed)
@@ -1162,6 +1162,6 @@ def validate_mask_with_gt(disp_net,pose_net,mask_net,flow_net,val_mask_loader):
 
 if __name__ == '__main__':
     import sys
-    with open("/home/ubuntu/Motion segmentation/experiment_recorder.md", "a") as f:
+    with open("/content/drive/MyDrive/VinAI/Motion segmentation/experiment_recorder.md", "a") as f:
         f.write('\n python3 ' + ' '.join(sys.argv))
     main()
