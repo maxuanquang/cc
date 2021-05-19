@@ -219,7 +219,8 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
             more different than thresh and approx. 0 if significantly less
             different than thresh.
         """
-        sq_dist_bkhw = torch.square(a_bkhw - b_bkhw)
+        # sq_dist_bkhw = torch.square(a_bkhw - b_bkhw)
+        sq_dist_bkhw = (a_bkhw - b_bkhw).pow(2)
         soft_thresh_dist_bhwk = sq_dist_bkhw / (thresh + sq_dist_bkhw)
         return torch.sum(soft_thresh_dist_bhwk, dim=1, keepdim=True)
 
