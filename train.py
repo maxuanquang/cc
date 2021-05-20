@@ -155,7 +155,7 @@ parser.add_argument('-pf', '--flow-photo-loss-weight', type=float, help='weight 
 parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for explainabilty mask loss', metavar='W', default=0)
 parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', metavar='W', default=0.1)
 parser.add_argument('-c', '--consensus-loss-weight', type=float, help='weight for mask consistancy', metavar='W', default=0.1)
-parser.add_argument('-cs', '--census-loss-weight', type=float, help='weight for census loss', metavar='W', default=0.1)
+parser.add_argument('-cs', '--census-loss-weight', type=float, help='weight for census loss', metavar='W', default=0.01)
 
 parser.add_argument('--THRESH', '--THRESH', type=float, help='threshold for masks', metavar='W', default=0.01)
 parser.add_argument('--lambda-oob', type=float, help='weight on the out of bound pixels', default=0)
