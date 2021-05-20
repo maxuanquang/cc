@@ -276,7 +276,7 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
             if occ_masks is not None:
                 diff = diff * (1-occ_masks[:, i:i+1]).expand_as(diff)
 
-            reconstruction_loss = census_loss_pytorch(tgt_img_scaled, ref_img_warped, occ_masks)
+            reconstruction_loss += census_loss_pytorch(tgt_img_scaled, ref_img_warped, occ_masks)
             #weight /= 2.83
             # assert((reconstruction_loss == reconstruction_loss).item() == 1)
 
