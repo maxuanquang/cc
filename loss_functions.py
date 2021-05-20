@@ -267,8 +267,6 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
             valid_pixels = 1 - (ref_img_warped == 0).prod(1,
                                                           keepdim=True).type_as(ref_img_warped)
             diff = (tgt_img_scaled - ref_img_warped) * valid_pixels
-            # ssim_loss = 1 - ssim(tgt_img_scaled, ref_img_warped) * valid_pixels
-            # oob_normalization_const = valid_pixels.nelement()/valid_pixels.sum()
 
             if explainability_mask is not None:
                 diff = diff * explainability_mask[:, i:i+1].expand_as(diff)
@@ -276,9 +274,7 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
             if occ_masks is not None:
                 diff = diff * (1-occ_masks[:, i:i+1]).expand_as(diff)
 
-            reconstruction_loss = census_loss_pytorch(tgt_img_scaled, ref_img_warped, occ_masks)
-            #weight /= 2.83
-            # assert((reconstruction_loss == reconstruction_loss).item() == 1)
+            reconstruction_loss += census_loss_pytorch(tgt_img_scaled, ref_img_warped, occ_masks)
 
         return reconstruction_loss
 
