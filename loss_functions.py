@@ -31,7 +31,7 @@ def robust_l1_per_pix(x, q=0.5, eps=1e-2):
 
 
 def photometric_flow_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch=0.5, wssim=0.5, use_occ_mask_at_scale=False):
-    
+
     def one_scale(explainability_mask, occ_masks, flows):
         assert(explainability_mask is None or flows[0].size()[
                2:] == explainability_mask.size()[2:])
@@ -165,12 +165,12 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
         """Used to ignore border effects from census_transform."""
         mask_padding = patch_size // 2
         mask = mask_b3hw[:, :, mask_padding:-
-                        mask_padding, mask_padding:-mask_padding]
+                         mask_padding, mask_padding:-mask_padding]
         return torch.nn.functional.pad(mask,
-                                    (mask_padding, mask_padding,
+                                       (mask_padding, mask_padding,
                                         mask_padding, mask_padding),
-                                    mode='constant',
-                                    value=0)
+                                       mode='constant',
+                                       value=0)
 
     def census_transform_torch(image_b3hw, patch_size):
         """The census transform as described by DDFlow.
@@ -186,7 +186,7 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
         intensities = image_b3hw[:, 0, :, :]*0.2989 + \
             image_b3hw[:, 1, :, :]*0.5870 + image_b3hw[:, 2, :, :]*0.1140
         intensities = torch.unsqueeze(intensities, 1) * 255
-        
+
         kernel = torch.reshape(
             torch.eye(patch_size * patch_size),
             (patch_size * patch_size, 1, patch_size, patch_size))
@@ -195,7 +195,7 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
             padding_ = math.ceil(patch_size/2-1)
         else:
             padding_ = math.ceil(patch_size/2-1) + 1
-        
+
         neighbors = torch.nn.functional.conv2d(
             input=intensities, weight=kernel, stride=1, dilation=1, padding=padding_)
         #   print(neighbors.shape)
@@ -224,16 +224,17 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
         soft_thresh_dist_bhwk = sq_dist_bkhw / (thresh + sq_dist_bkhw)
         return torch.sum(soft_thresh_dist_bhwk, dim=1, keepdim=True)
 
-    def census_loss_pytorch(image_a_bhw3, # tgt_img_scaled
-                            image_b_bhw3, # ref_img_warped
-                            mask_bhw3, # occlusion_mask
+    def census_loss_pytorch(image_a_bhw3,  # tgt_img_scaled
+                            image_b_bhw3,  # ref_img_warped
+                            mask_bhw3,  # occlusion_mask
                             patch_size=7,
                             distance_metric_fn=abs_robust_loss_torch):
         """Compares the similarity of the census transform of two images."""
         census_image_a_bhwk = census_transform_torch(image_a_bhw3, patch_size)
         census_image_b_bhwk = census_transform_torch(image_b_bhw3, patch_size)
 
-        hamming_bhw1 = soft_hamming_torch(census_image_a_bhwk, census_image_b_bhwk)
+        hamming_bhw1 = soft_hamming_torch(
+            census_image_a_bhwk, census_image_b_bhwk)
 
         # Set borders of mask to zero to ignore edge effects.
         padded_mask_bhw3 = zero_mask_border_torch(mask_bhw3, patch_size)
@@ -244,7 +245,7 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
         loss_mean = diff_sum / (
             torch.sum(padded_mask_bhw3 + 1e-6))
         return loss_mean
-    
+
     def one_scale_flow(explainability_mask, occ_masks, flows):
         assert(explainability_mask is None or flows[0].size()[
                2:] == explainability_mask.size()[2:])
@@ -276,7 +277,8 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
             if occ_masks is not None:
                 diff = diff * (1-occ_masks[:, i:i+1]).expand_as(diff)
 
-            reconstruction_loss += census_loss_pytorch(tgt_img_scaled, ref_img_warped, occ_masks)
+            reconstruction_loss += census_loss_pytorch(
+                tgt_img_scaled, ref_img_warped, occ_masks)
             #weight /= 2.83
             # assert((reconstruction_loss == reconstruction_loss).item() == 1)
 
@@ -297,7 +299,7 @@ def census_loss(tgt_img, ref_imgs, flows, explainability_mask, lambda_oob=0, qch
         if use_occ_mask_at_scale == False:
             occ_mask_at_scale = None
         loss += one_scale_flow(explainability_mask[i],
-                          occ_mask_at_scale, flow_at_scale)
+                               occ_mask_at_scale, flow_at_scale)
 
     return loss
 
@@ -698,3 +700,29 @@ def compute_errors(gt, pred, crop=True):
         sq_rel += torch.mean(((valid_gt - valid_pred)**2) / valid_gt)
 
     return [metric / batch_size for metric in [abs_diff, abs_rel, sq_rel, a1, a2, a3]]
+
+
+###########################################
+###########################################
+# elif occlusion_estimation == 'uflow':
+
+#     # Compute occlusion from forward-backward consistency. If the flow
+#     # vectors are inconsistent, this means that they are either wrong or
+#     # occluded.
+#     if 'fb_abs' in occ_weights and (occ_active is None or
+#                                     occ_active['fb_abs']):
+#         # Clip to [0, max].
+#         occlusion_scores['fb_abs'] = tf.clip_by_value(
+#             fb_sq_diff[key][level]**0.5, 0.0, occ_clip_max['fb_abs'])
+
+#     occlusion_logits = tf.zeros_like(
+#         flow_ij[Ellipsis, :1], dtype=tf.float32)
+#     for k, v in occlusion_scores.items():
+#         occlusion_logits += (v -
+#                              occ_thresholds[k]) * occ_weights[k]
+#     occlusion_mask = tf.sigmoid(occlusion_logits)
+
+# occlusion_masks[key].append(
+#     1. - occlusion_mask if occlusions_are_zeros else occlusion_mask)
+##########################################################
+##########################################################
